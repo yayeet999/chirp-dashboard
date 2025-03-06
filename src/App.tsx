@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
-import DashboardHomePage from "./pages/DashboardHomePage";
 import FirasGptPage from "./pages/FirasGptPage";
 import SettingsPage from "./pages/SettingsPage";
 
@@ -25,7 +24,7 @@ const App = () => (
           
           {/* Dashboard */}
           <Route path="/dashboard" element={<DashboardLayout />}>
-            <Route index element={<DashboardHomePage />} />
+            <Route index element={<Navigate to="/dashboard/firasgpt" replace />} />
             <Route path="firasgpt" element={<FirasGptPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>

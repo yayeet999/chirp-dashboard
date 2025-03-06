@@ -30,9 +30,8 @@ const SettingsPage: React.FC = () => {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full md:w-auto grid-cols-3 md:inline-flex">
+        <TabsList className="grid w-full md:w-auto grid-cols-2 md:inline-flex">
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="api">API Connections</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
         </TabsList>
         
@@ -101,70 +100,6 @@ const SettingsPage: React.FC = () => {
             <CardFooter className="flex justify-end gap-3">
               <Button variant="outline">Reset</Button>
               <Button onClick={handleSaveSettings}>Save Changes</Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="api" className="mt-6">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>API Connections</CardTitle>
-              <CardDescription>
-                Manage connections to external APIs
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium">Twitter API</h3>
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="twitter-api-key">API Key</Label>
-                    <Input id="twitter-api-key" type="password" defaultValue="••••••••••••••••" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="twitter-api-secret">API Secret</Label>
-                    <Input id="twitter-api-secret" type="password" defaultValue="••••••••••••••••" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="twitter-access-token">Access Token</Label>
-                    <Input id="twitter-access-token" type="password" defaultValue="••••••••••••••••" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="twitter-token-secret">Access Token Secret</Label>
-                    <Input id="twitter-token-secret" type="password" defaultValue="••••••••••••••••" />
-                  </div>
-                </div>
-              </div>
-              
-              <Separator />
-              
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium">OpenAI API</h3>
-                <div className="space-y-2">
-                  <Label htmlFor="openai-api-key">API Key</Label>
-                  <Input id="openai-api-key" type="password" defaultValue="••••••••••••••••" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="openai-organization">Organization ID (Optional)</Label>
-                  <Input id="openai-organization" placeholder="org-..." />
-                </div>
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="api-logs">Enable API Logs</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Log all API requests and responses
-                  </p>
-                </div>
-                <Switch id="api-logs" defaultChecked />
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end gap-3">
-              <Button variant="outline">Test Connections</Button>
-              <Button onClick={handleSaveSettings}>Save API Settings</Button>
             </CardFooter>
           </Card>
         </TabsContent>

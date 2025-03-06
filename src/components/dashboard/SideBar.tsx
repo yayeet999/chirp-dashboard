@@ -1,7 +1,7 @@
 
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { BarChart3, Home, Settings, Twitter, X, LogOut } from "lucide-react";
+import { Twitter, Settings, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -40,17 +40,6 @@ const SideBar: React.FC<SideBarProps> = ({ isOpen, toggle, onSignOut }) => {
         <div className="space-y-4 py-4">
           <div className="px-3 py-2">
             <div className="space-y-1">
-              <NavLink 
-                to="/dashboard" 
-                className={({ isActive }) => cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-base transition-all hover:bg-accent",
-                  isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground"
-                )}
-                end
-              >
-                <Home className="h-5 w-5" />
-                <span>Dashboard</span>
-              </NavLink>
               <NavLink 
                 to="/dashboard/firasgpt" 
                 className={({ isActive }) => cn(
