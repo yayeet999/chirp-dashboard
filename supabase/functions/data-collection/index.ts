@@ -94,7 +94,7 @@ async function fetchFromPerplexity(apiKey: string): Promise<string> {
     messages: [
       {
         role: "user",
-        content: "Provide an in-depth, highly detailed report on the major news, significant announcements, and the biggest updates from the past 24 hours related to artificial intelligence. Focus on large language models, groundbreaking new AI tools, revolutionary AI models, major programming or coding advancements tied to AI, and the most important AI conversations or developments. Include extensive examples, thorough descriptions of what makes each update significant, the potential impact on the AI field, and any notable details about how these developments came about. I want a lengthy and comprehensive output with as much information as possible.",
+        content: "Provide an in-depth, highly detailed report on the major news, significant announcements, and the biggest updates from the past 4 days, strictly from March 3, 2025, to March 6, 2025, including today, related to artificial intelligence. Focus on large language models, groundbreaking new AI tools, revolutionary AI models, major programming or coding advancements tied to AI, and the most important AI conversations or developments. Categorize the updates by day, starting with March 6, 2025, and going back to March 3, 2025, using only the exact publication dates from the sources. If a date is unclear or unavailable, note it as 'date uncertain.' Include extensive examples, thorough descriptions of what makes each update significant, the potential impact on the AI field, and any notable details about how these developments came about. I want a lengthy and comprehensive output with as much information as possible.",
       },
     ],
     max_tokens: 8192,
