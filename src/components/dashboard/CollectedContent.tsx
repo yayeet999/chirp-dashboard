@@ -7,17 +7,20 @@ import { Separator } from "@/components/ui/separator";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { Json } from "@/integrations/supabase/types";
 
 interface CollectedContentItem {
   id: string;
-  source: string;
-  content_type: string;
+  perplexity_data: Json;
+  created_at: string;
+}
+
+// Define a helper interface for the processed data to display in the UI
+interface ProcessedContent {
   title: string;
   summary: string;
-  published_date: string;
   topics: string[];
   relevance_score: number;
-  created_at: string;
 }
 
 const CollectedContent: React.FC = () => {
@@ -90,6 +93,58 @@ const CollectedContent: React.FC = () => {
       });
     }
   };
+
+  // Process raw Perplexity data for display
+  const processPerplexityData = (item: CollectedContentItem): ProcessedContent => {
+    if (!item.perplexity_data) {
+      return {
+        title: "No Title Available",
+        summary: "No data available",
+        topics: [],
+        relevance_score: 0
+      };
+    }
+
+    try {
+      // If perplexity_data is a string, try to parse it as JSON
+      const data = typeof item.perplexity_data === 'string' 
+        ? JSON.parse(item.perplexity_data) 
+        : item.perplexity_data;
+      
+      // Extract content based on expected Perplexity response structure
+      const content = data.choices?.[0]?.message?.content || data.content || '';
+      
+      // Extract the first paragraph or sentence as title
+      const title = content.split('\n')[0].substring(0, 100) || "AI Content Update";
+      
+      // Use the rest as summary
+      const summary = content.substring(title.length).trim() || content;
+      
+      // Extract potential topics from the content
+      const topicKeywords = ['AI', 'ML', 'GPT', 'LLM', 'Neural Networks', 'Machine Learning', 'Deep Learning'];
+      const topics = topicKeywords.filter(keyword => 
+        content.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      // Assign a reasonable relevance score
+      const relevance_score = Math.min(topics.length * 20, 100) || 80;
+      
+      return {
+        title,
+        summary,
+        topics: topics.length > 0 ? topics : ['AI', 'Technology'],
+        relevance_score
+      };
+    } catch (e) {
+      console.error("Error processing Perplexity data:", e);
+      return {
+        title: "Error Processing Data",
+        summary: "There was an error processing this content",
+        topics: ['Error'],
+        relevance_score: 0
+      };
+    }
+  };
   
   return (
     <Card className="glass-card">
@@ -114,34 +169,38 @@ const CollectedContent: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            {content.map((item) => (
-              <div key={item.id} className="border rounded-lg p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-lg">{item.title}</h3>
-                  <Badge variant="secondary">
-                    Score: {item.relevance_score}
-                  </Badge>
-                </div>
-                
-                <p className="text-sm text-muted-foreground mb-1">
-                  {new Date(item.created_at).toLocaleString()}
-                </p>
-                
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {item.topics.map((topic, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {topic}
+            {content.map((item) => {
+              const processedData = processPerplexityData(item);
+              
+              return (
+                <div key={item.id} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-semibold text-lg">{processedData.title}</h3>
+                    <Badge variant="secondary">
+                      Score: {processedData.relevance_score}
                     </Badge>
-                  ))}
+                  </div>
+                  
+                  <p className="text-sm text-muted-foreground mb-1">
+                    {new Date(item.created_at).toLocaleString()}
+                  </p>
+                  
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {processedData.topics.map((topic, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {topic}
+                      </Badge>
+                    ))}
+                  </div>
+                  
+                  <Separator className="my-3" />
+                  
+                  <div className="max-h-40 overflow-y-auto text-sm">
+                    <p className="whitespace-pre-line">{processedData.summary.substring(0, 300)}...</p>
+                  </div>
                 </div>
-                
-                <Separator className="my-3" />
-                
-                <div className="max-h-40 overflow-y-auto text-sm">
-                  <p className="whitespace-pre-line">{item.summary.substring(0, 300)}...</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             
             {isLoading && (
               <div className="flex justify-center py-8">
