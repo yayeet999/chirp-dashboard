@@ -17,12 +17,12 @@ import WorkflowStatus from "@/components/dashboard/WorkflowStatus";
 import TweetCard from "@/components/dashboard/TweetCard";
 
 const FirasGptPage: React.FC = () => {
-  // Placeholder data
+  // Placeholder data with correct type for status
   const workflowSteps = [
-    { name: "Topic Selection", status: "completed", time: "09:30 AM" },
-    { name: "Content Generation", status: "completed", time: "10:15 AM" },
-    { name: "Quality Review", status: "in-progress" },
-    { name: "Posting to Twitter", status: "pending" },
+    { name: "Topic Selection", status: "completed" as const, time: "09:30 AM" },
+    { name: "Content Generation", status: "completed" as const, time: "10:15 AM" },
+    { name: "Quality Review", status: "in-progress" as const },
+    { name: "Posting to Twitter", status: "pending" as const },
   ];
   
   const recentTweets = [

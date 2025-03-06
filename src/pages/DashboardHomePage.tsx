@@ -13,12 +13,12 @@ import WorkflowStatus from "@/components/dashboard/WorkflowStatus";
 import TweetCard from "@/components/dashboard/TweetCard";
 
 const DashboardHomePage: React.FC = () => {
-  // Placeholder data
+  // Placeholder data with correct type for status
   const workflowSteps = [
-    { name: "Content Generation", status: "completed", time: "09:30 AM" },
-    { name: "Review & Edit", status: "completed", time: "10:15 AM" },
-    { name: "Scheduled for Posting", status: "in-progress" },
-    { name: "Analytics Collection", status: "pending" },
+    { name: "Content Generation", status: "completed" as const, time: "09:30 AM" },
+    { name: "Review & Edit", status: "completed" as const, time: "10:15 AM" },
+    { name: "Scheduled for Posting", status: "in-progress" as const },
+    { name: "Analytics Collection", status: "pending" as const },
   ];
   
   const recentTweets = [
