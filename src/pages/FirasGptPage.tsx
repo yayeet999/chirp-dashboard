@@ -1,9 +1,11 @@
+
 import React from "react";
 import { Bot, Users, MessageCircle, Heart, BarChart2, Repeat, TrendingUp, Eye, ArrowUpRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import StatusBadge from "@/components/dashboard/StatusBadge";
+import CollectedContent from "@/components/dashboard/CollectedContent";
 
 const MetricCard = ({ title, value, icon, trend }: { 
   title: string; 
@@ -52,6 +54,7 @@ const FirasGptPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Metrics Section */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Total Impressions"
@@ -75,6 +78,10 @@ const FirasGptPage: React.FC = () => {
         />
       </div>
 
+      {/* Collected Content Section */}
+      <CollectedContent />
+
+      {/* Original Content */}
       <Card className="glass-card">
         <CardHeader>
           <CardTitle>Performance Trends</CardTitle>
