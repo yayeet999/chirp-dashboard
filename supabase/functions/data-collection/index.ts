@@ -70,6 +70,36 @@ Deno.serve(async (req) => {
       );
     }
     
+    // Increment the Redis counter for context updates
+    let dataCollectionCounter = 1;
+    try {
+      const { data: counterData, error: counterError } = await supabase.rpc('increment_counter', {
+        counter_name: 'data_collection_counter'
+      });
+      
+      if (!counterError && counterData) {
+        dataCollectionCounter = counterData;
+        console.log(`Data collection counter incremented to: ${dataCollectionCounter}`);
+        
+        // Check if we need to update medium-term context (after 48 cycles ≈ 4 days)
+        if (dataCollectionCounter >= 48) {
+          console.log("Triggering medium-term context update...");
+          // Reset counter
+          await supabase.rpc('reset_counter', {
+            counter_name: 'data_collection_counter'
+          });
+          
+          // You would trigger your context management service here
+          // For now we'll just log it
+          console.log("Medium-term context update would be triggered here");
+        }
+      } else if (counterError) {
+        console.error("Error incrementing counter:", counterError);
+      }
+    } catch (counterErr) {
+      console.error("Error managing data collection counter:", counterErr);
+    }
+    
     console.log("Data collection completed successfully");
     return new Response(
       JSON.stringify({ success: true, message: "Data collection completed" }),
@@ -89,16 +119,40 @@ Deno.serve(async (req) => {
 async function fetchFromPerplexity(apiKey: string): Promise<string> {
   console.log("Fetching data from Perplexity Sonar Pro API...");
   
+  // Calculate dynamic date ranges for the past 4 days
+  const today = new Date();
+  const dates = [];
+  
+  for (let i = 0; i < 4; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+    const formattedDate = date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    dates.push(formattedDate);
+  }
+  
+  const [currentDate, oneDayAgo, twoDaysAgo, threeDaysAgo] = dates;
+  
+  // Construct a dynamic prompt with the calculated dates
+  const prompt = `Provide an in-depth, highly detailed report on the major news, significant announcements, and the biggest updates from the past 4 days, strictly from ${threeDaysAgo} to ${currentDate}, including today, related to artificial intelligence. Focus on large language models, groundbreaking new AI tools, revolutionary AI models, major programming or coding advancements tied to AI, and the most important AI conversations or developments. 
+  
+  Categorize the updates by day, starting with ${currentDate}, and going back to ${threeDaysAgo}, using only the exact publication dates from the sources. If a date is unclear or unavailable, note it as 'date uncertain.' 
+  
+  Include extensive examples, thorough descriptions of what makes each update significant, the potential impact on the AI field, and any notable details about how these developments came about. I want a lengthy and comprehensive output with as much information as possible.`;
+
   const requestBody = {
     model: "sonar-pro",
     messages: [
       {
         role: "user",
-        content: "Provide an in-depth, highly detailed report on the major news, significant announcements, and the biggest updates from the past 4 days, strictly from March 3, 2025, to March 6, 2025, including today, related to artificial intelligence. Focus on large language models, groundbreaking new AI tools, revolutionary AI models, major programming or coding advancements tied to AI, and the most important AI conversations or developments. Categorize the updates by day, starting with March 6, 2025, and going back to March 3, 2025, using only the exact publication dates from the sources. If a date is unclear or unavailable, note it as 'date uncertain.' Include extensive examples, thorough descriptions of what makes each update significant, the potential impact on the AI field, and any notable details about how these developments came about. I want a lengthy and comprehensive output with as much information as possible.",
+        content: prompt,
       },
     ],
     max_tokens: 8192,
-    search_recency_filter: "day",
+    search_recency_filter: "week", // Updated to "week" to cover the 4-day range
     return_citations: false,
   };
 
