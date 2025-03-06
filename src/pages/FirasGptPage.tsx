@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Bot, Users, MessageCircle, Heart, BarChart2, Repeat, TrendingUp, Eye, ArrowUpRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,9 +50,6 @@ const FirasGptPage: React.FC = () => {
             <p className="text-sm text-muted-foreground">Tweet performance metrics</p>
           </div>
         </div>
-        <Button variant="default">
-          Generate Report
-        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
