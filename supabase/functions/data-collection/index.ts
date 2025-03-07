@@ -19,12 +19,22 @@ Deno.serve(async (req) => {
   const supabaseUrl = environmentVariables.SUPABASE_URL || '';
   const supabaseAnonKey = environmentVariables.SUPABASE_ANON_KEY || '';
   const perplexityApiKey = environmentVariables.PERPLEXITY_API_KEY || '';
+  const upstashRedisUrl = environmentVariables.UPSTASH_REDIS_REST_URL || '';
+  const upstashRedisToken = environmentVariables.UPSTASH_REDIS_REST_TOKEN || '';
   
   // Validate required environment variables
   if (!perplexityApiKey) {
     console.error("Missing PERPLEXITY_API_KEY environment variable");
     return new Response(
       JSON.stringify({ error: "Server configuration error" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+    );
+  }
+  
+  if (!upstashRedisUrl || !upstashRedisToken) {
+    console.error("Missing Upstash Redis configuration variables");
+    return new Response(
+      JSON.stringify({ error: "Redis configuration error" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
@@ -73,31 +83,45 @@ Deno.serve(async (req) => {
     // Increment the Redis counter for context updates
     let dataCollectionCounter = 1;
     try {
-      const { data: counterData, error: counterError } = await supabase.rpc('increment_counter', {
-        counter_name: 'data_collection_counter'
+      // Increment counter using Upstash Redis REST API
+      const incrementResponse = await fetch(`${upstashRedisUrl}/incr/data_collection_counter`, {
+        headers: {
+          Authorization: `Bearer ${upstashRedisToken}`
+        }
       });
       
-      if (!counterError && counterData) {
-        dataCollectionCounter = counterData;
-        console.log(`Data collection counter incremented to: ${dataCollectionCounter}`);
-        
-        // Check if we need to update medium-term context (after 48 cycles ≈ 4 days)
-        if (dataCollectionCounter >= 48) {
-          console.log("Triggering medium-term context update...");
-          // Reset counter
-          await supabase.rpc('reset_counter', {
-            counter_name: 'data_collection_counter'
-          });
-          
-          // You would trigger your context management service here
-          // For now we'll just log it
-          console.log("Medium-term context update would be triggered here");
-        }
-      } else if (counterError) {
-        console.error("Error incrementing counter:", counterError);
+      if (!incrementResponse.ok) {
+        throw new Error(`Redis increment failed: ${incrementResponse.statusText}`);
       }
-    } catch (counterErr) {
-      console.error("Error managing data collection counter:", counterErr);
+      
+      const incrementResult = await incrementResponse.json();
+      dataCollectionCounter = incrementResult.result;
+      console.log(`Data collection counter incremented to: ${dataCollectionCounter}`);
+      
+      // Check if we need to update medium-term context (after 48 cycles ≈ 4 days)
+      if (dataCollectionCounter >= 48) {
+        console.log("Triggering medium-term context update...");
+        
+        // Reset counter in Redis
+        const resetResponse = await fetch(`${upstashRedisUrl}/set/data_collection_counter/0`, {
+          headers: {
+            Authorization: `Bearer ${upstashRedisToken}`
+          }
+        });
+        
+        if (!resetResponse.ok) {
+          throw new Error(`Redis reset failed: ${resetResponse.statusText}`);
+        }
+        
+        console.log("Data collection counter reset to 0");
+        
+        // You would trigger your context management service here
+        // For now we'll just log it
+        console.log("Medium-term context update would be triggered here");
+      }
+    } catch (redisError) {
+      console.error("Error managing Redis counter:", redisError);
+      // Continue execution - counter errors shouldn't stop the main flow
     }
     
     console.log("Data collection completed successfully");
