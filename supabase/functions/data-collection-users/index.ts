@@ -86,8 +86,8 @@ Deno.serve(async (req) => {
       dataCollectionCounter = incrementResult.result;
       console.log(`Data collection counter incremented to: ${dataCollectionCounter}`);
       
-      // Check if we need to update medium-term context (after 48 cycles ≈ 4 days)
-      if (dataCollectionCounter >= 48) {
+      // Check if we need to update medium-term context (after 20 cycles instead of 48)
+      if (dataCollectionCounter >= 20) {
         console.log("Triggering medium-term context update...");
         
         // Reset counter in Redis
@@ -134,8 +134,8 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
   // Base URL for Twitter API v2
   const API_BASE_URL = 'https://api.twitter.com/2';
   
-  // Calculate time 48 hours ago (updated from 24 to 48 hours)
-  const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  // Calculate time 5 hours ago (updated from 48 hours to 5 hours)
+  const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
   
   // List of 15 user IDs (reduced for debugging)
   const userIds = [
@@ -154,7 +154,7 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
       const response = await axiod.get(`${API_BASE_URL}/users/${userId}/tweets`, {
         headers: { Authorization: `Bearer ${bearerToken}` },
         params: {
-          start_time: fortyEightHoursAgo,
+          start_time: fiveHoursAgo,
           'tweet.fields': 'created_at,public_metrics',
           max_results: 20,
           exclude: 'retweets,replies',  // Exclude both retweets and replies
