@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Bot, Users, MessageCircle, Heart, BarChart2, Repeat, TrendingUp, Eye, ArrowUpRight } from "lucide-react";
+import { Bot, Users, MessageCircle, Heart, BarChart2, Repeat, TrendingUp, Eye, ArrowUpRight, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -54,6 +54,24 @@ const FirasGptPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Featured Content Section - NEW */}
+      <Card className="glass-card border-primary/20">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Latest AI Content Update
+            </CardTitle>
+            <CardDescription>
+              Most recent data collected from Perplexity API
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <CollectedContent limit={1} featured={true} />
+        </CardContent>
+      </Card>
+
       {/* Metrics Section */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
@@ -78,7 +96,7 @@ const FirasGptPage: React.FC = () => {
         />
       </div>
 
-      {/* Collected Content Section */}
+      {/* Archive of Collected Content */}
       <CollectedContent />
 
       {/* Original Content */}

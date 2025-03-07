@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +22,15 @@ interface ProcessedContent {
   relevance_score: number;
 }
 
-const CollectedContent: React.FC = () => {
+interface CollectedContentProps {
+  limit?: number;
+  featured?: boolean;
+}
+
+const CollectedContent: React.FC<CollectedContentProps> = ({ 
+  limit = 5,
+  featured = false
+}) => {
   const [content, setContent] = useState<CollectedContentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -36,7 +43,7 @@ const CollectedContent: React.FC = () => {
         .from('collected_content')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(limit);
       
       if (error) {
         throw error;
@@ -57,7 +64,7 @@ const CollectedContent: React.FC = () => {
   
   useEffect(() => {
     fetchCollectedContent();
-  }, []);
+  }, [limit]);
   
   const handleManualCollection = async () => {
     try {
@@ -146,8 +153,61 @@ const CollectedContent: React.FC = () => {
     }
   };
   
+  if (featured && content.length > 0) {
+    // Featured view for single item
+    const featuredItem = content[0];
+    const processedData = processPerplexityData(featuredItem);
+    
+    return (
+      <div className="relative">
+        {isLoading ? (
+          <div className="flex justify-center py-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <div>
+            <div className="flex flex-wrap gap-1 mb-4">
+              {processedData.topics.map((topic, index) => (
+                <Badge key={index} variant="outline" className="text-xs">
+                  {topic}
+                </Badge>
+              ))}
+              <Badge variant="secondary" className="ml-auto">
+                Score: {processedData.relevance_score}
+              </Badge>
+            </div>
+            
+            <div className="text-sm text-muted-foreground mb-3 flex items-center justify-between">
+              <span>Updated {new Date(featuredItem.created_at).toLocaleString()}</span>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-6 w-6" 
+                onClick={fetchCollectedContent} 
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+            
+            <div className="prose prose-sm max-w-none">
+              <h3 className="mb-2 text-lg font-medium">{processedData.title}</h3>
+              <div className="whitespace-pre-line text-sm">{processedData.summary}</div>
+            </div>
+            
+            <div className="mt-4 flex justify-end">
+              <Button variant="ghost" size="sm" onClick={handleManualCollection}>
+                Trigger New Collection
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+  
   return (
-    <Card className="glass-card">
+    <Card className={`${featured ? '' : 'glass-card'}`}>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Latest AI Content</CardTitle>
         <Button 
