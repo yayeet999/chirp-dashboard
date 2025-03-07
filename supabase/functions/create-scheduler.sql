@@ -3,10 +3,10 @@
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
--- Create a job that runs every 2 hours from 6am to 10pm (Central Time, UTC-6)
+-- Create a job that runs at specific times: 6am, 11am, 4pm, and 9pm Central Time (UTC-6)
 SELECT cron.schedule(
-  'data-collection-every-2-hours',
-  '0 6,8,10,12,14,16,18,20,22 * * *', -- every 2 hours from 6am to 10pm
+  'data-collection-at-specific-times',
+  '0 6,11,16,21 * * *', -- At 6am, 11am, 4pm, and 9pm
   $$
   SELECT net.http_post(
     url:='https://exqqpgsbpveeffpbxmdq.supabase.co/functions/v1/data-collection-scheduler',
@@ -15,3 +15,6 @@ SELECT cron.schedule(
   ) as request_id;
   $$
 );
+
+-- Drop the old job if it exists
+SELECT cron.unschedule('data-collection-every-2-hours');
