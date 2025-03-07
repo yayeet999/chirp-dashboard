@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Bot, Users, MessageCircle, Heart, BarChart2, Repeat, TrendingUp, Eye, ArrowUpRight, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,9 +94,6 @@ const FirasGptPage: React.FC = () => {
           icon={<Repeat className="h-5 w-5 text-primary" />}
         />
       </div>
-
-      {/* Archive of Collected Content */}
-      <CollectedContent />
 
       {/* Original Content */}
       <Card className="glass-card">
