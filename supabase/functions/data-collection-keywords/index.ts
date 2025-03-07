@@ -1,6 +1,6 @@
 
 // Data Collection Service for Perplexity AI
-// This edge function collects AI-related content from Perplexity API using Sonar Pro model
+// This edge function collects AI-related content from Perplexity API using Sonar Reasoning Pro model
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -93,49 +93,23 @@ Deno.serve(async (req) => {
   }
 });
 
-// Function to fetch data from Perplexity Sonar Pro API
+// Function to fetch data from Perplexity Sonar Reasoning Pro API
 async function fetchFromPerplexity(apiKey: string): Promise<string> {
-  console.log("Fetching data from Perplexity Sonar Pro API...");
+  console.log("Fetching data from Perplexity Sonar Reasoning Pro API...");
   
-  // Calculate dynamic date ranges for the past 4 days
+  // Get current date in a readable format
   const today = new Date();
-  const dates = [];
+  const formattedDate = today.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
   
-  for (let i = 0; i < 4; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - i);
-    const formattedDate = date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-    dates.push(formattedDate);
-  }
-  
-  const [currentDate, oneDayAgo, twoDaysAgo, threeDaysAgo] = dates;
-  
-  // Updated prompt to focus specifically on new model releases and major AI announcements
-  const prompt = `Provide a comprehensive report ONLY on BRAND NEW AI model releases and MAJOR AI announcements that were officially released or announced between ${threeDaysAgo} and ${currentDate} (inclusive).
-
-Focus EXCLUSIVELY on:
-1. NEW model releases/announcements from major AI companies including OpenAI, Anthropic, Alibaba, Qwen, DeepSeek, Mistral, Llama, Meta, Amazon, Google/Gemini, and other significant AI labs
-2. MAJOR industry-changing AI announcements, product launches, or breakthroughs 
-3. Significant AI industry events, conferences, or regulatory developments that occurred within this exact date range
-
-Important requirements:
-- ONLY include information about announcements that were ACTUALLY MADE during this time period (${threeDaysAgo} to ${currentDate})
-- DO NOT include previous announcements or old news repackaged as recent
-- DO NOT include speculation, rumors, or analysis of older announcements
-- Verify all dates carefully using only exact release/announcement dates from official sources
-- If a date is unclear or cannot be verified, explicitly mark it as "date unconfirmed"
-- Organize information chronologically by day, starting with ${currentDate} and going back to ${threeDaysAgo}
-- For each entry, include the exact date of the announcement, the organization involved, and a detailed description of what was announced
-- If there were no significant announcements on a particular day, explicitly state "No major AI announcements on this day" for that date
-
-Provide thorough details on what makes each announcement significant, its potential impact on the AI landscape, and any notable technical specifications or capabilities of new models.`;
+  // Updated prompt with dynamic date
+  const prompt = `Perform a wide and extensive search to find the most recently released AI models in the past 48 hours from today's date of "${formattedDate}". Focus on both open and closed source ai LLMs. They must have been newly released in the past 48 hours.`;
 
   const requestBody = {
-    model: "sonar",
+    model: "sonar-reasoning-pro",
     messages: [
       {
         role: "user",
@@ -143,7 +117,7 @@ Provide thorough details on what makes each announcement significant, its potent
       },
     ],
     max_tokens: 8192,
-    search_recency_filter: "week", // Use "week" to cover the 4-day range
+    search_recency_filter: "week", // Keep "week" to cover the recent 48-hour range
     return_citations: false,
   };
 
@@ -170,8 +144,8 @@ Provide thorough details on what makes each announcement significant, its potent
     
     console.log("Successfully retrieved data from Perplexity API");
     
-    // Format the result with prompt information
-    return `[Perplexity Sonar Pro] Date Range: ${threeDaysAgo} to ${currentDate}\n\n${content}`;
+    // Format the result with prompt information and current date
+    return `[Perplexity Sonar Reasoning Pro] Date: ${formattedDate}\n\nQuery: Find most recently released AI models in the past 48 hours.\n\n${content}`;
   } catch (error) {
     console.error('Error in fetchFromPerplexity:', error);
     throw new Error(`Failed to fetch Perplexity data: ${error.message}`);
