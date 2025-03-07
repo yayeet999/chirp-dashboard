@@ -14,16 +14,19 @@ export type Database = {
           created_at: string | null
           id: string
           twitter_data: string | null
+          twitter_keywordreturn: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
           twitter_data?: string | null
+          twitter_keywordreturn?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
           twitter_data?: string | null
+          twitter_keywordreturn?: string | null
         }
         Relationships: []
       }

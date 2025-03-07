@@ -1,11 +1,12 @@
 
 import React from "react";
-import { Bot, Users, MessageCircle, Heart, BarChart2, Repeat, TrendingUp, Eye, ArrowUpRight, FileText } from "lucide-react";
+import { Bot, Users, MessageCircle, Heart, BarChart2, Repeat, TrendingUp, Eye, ArrowUpRight, FileText, User, Hash } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import StatusBadge from "@/components/dashboard/StatusBadge";
 import CollectedContent from "@/components/dashboard/CollectedContent";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const MetricCard = ({ title, value, icon, trend }: { 
   title: string; 
@@ -63,7 +64,7 @@ const FirasGptPage: React.FC = () => {
               Latest Twitter Data
             </CardTitle>
             <CardDescription>
-              Most recent data collected from Twitter API
+              Collected data from Twitter API (User Timelines & Keyword Search)
             </CardDescription>
           </div>
         </CardHeader>
@@ -72,7 +73,56 @@ const FirasGptPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Metrics Section */}
+      {/* Data Source Metrics */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <User className="h-4 w-4 text-primary" />
+              User Timeline Data
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <MetricCard
+                title="User Accounts"
+                value="15"
+                icon={<Users className="h-5 w-5 text-primary" />}
+              />
+              <MetricCard
+                title="Timeline Posts"
+                value="N/A"
+                icon={<MessageCircle className="h-5 w-5 text-primary" />}
+              />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Hash className="h-4 w-4 text-primary" />
+              Keyword Search Data
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <MetricCard
+                title="Keywords"
+                value="30"
+                icon={<TrendingUp className="h-5 w-5 text-primary" />}
+              />
+              <MetricCard
+                title="Trending Posts"
+                value="N/A"
+                icon={<Eye className="h-5 w-5 text-primary" />}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Engagement Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Total Impressions"
@@ -96,7 +146,7 @@ const FirasGptPage: React.FC = () => {
         />
       </div>
 
-      {/* Original Content */}
+      {/* Performance Trends */}
       <Card className="glass-card">
         <CardHeader>
           <CardTitle>Performance Trends</CardTitle>
@@ -115,42 +165,20 @@ const FirasGptPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>Top Performing Tweets</CardTitle>
-            <CardDescription>
-              Tweets with highest engagement
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center h-36 border rounded-md border-dashed">
-              <div className="text-center space-y-1">
-                <TrendingUp className="h-6 w-6 text-muted-foreground mx-auto" />
-                <p className="text-muted-foreground">No tweet data yet</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Top Performing Content */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle>Collected Content</CardTitle>
+          <CardDescription>
+            Historical collected data from Twitter
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CollectedContent limit={3} />
+        </CardContent>
+      </Card>
 
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>Recent Replies</CardTitle>
-            <CardDescription>
-              Latest interactions with your tweets
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center h-36 border rounded-md border-dashed">
-              <div className="text-center space-y-1">
-                <MessageCircle className="h-6 w-6 text-muted-foreground mx-auto" />
-                <p className="text-muted-foreground">No replies yet</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
+      {/* Audience Insights */}
       <Card className="glass-card">
         <CardHeader>
           <CardTitle>Audience Insights</CardTitle>

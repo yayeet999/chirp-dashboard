@@ -4,14 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator"; 
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, User, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Json } from "@/integrations/supabase/types";
 
 interface CollectedContentItem {
   id: string;
   twitter_data: string;
+  twitter_keywordreturn: string;
   created_at: string;
 }
 
@@ -34,6 +35,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
 }) => {
   const [content, setContent] = useState<CollectedContentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("users");
   const { toast } = useToast();
 
   const fetchCollectedContent = async () => {
@@ -50,6 +52,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
         throw error;
       }
       
+      console.log("Fetched content:", data);
       setContent(data || []);
     } catch (error) {
       console.error("Error fetching collected content:", error);
@@ -84,7 +87,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
       
       toast({
         title: "Success",
-        description: "Data collection has been triggered",
+        description: "Data collection has been triggered for both user and keyword searches",
       });
       
       // Wait a moment and then refresh the content
@@ -102,11 +105,11 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     }
   };
 
-  // Process twitter_data for display - now handling as text
-  const processTwitterData = (item: CollectedContentItem): ProcessedContent => {
-    if (!item.twitter_data) {
+  // Process twitter_data for display
+  const processTwitterData = (text: string | null): ProcessedContent => {
+    if (!text) {
       return {
-        title: "No Title Available",
+        title: "No Data Available",
         summary: "No data available",
         topics: [],
         relevance_score: 0
@@ -114,18 +117,27 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     }
 
     try {
-      // Since twitter_data is now a string, we need to handle it accordingly
-      const content = item.twitter_data;
+      // Extract topics using some simple heuristics
+      const topicRegex = /\b(AI|LLM|GPT|Claude|Mistral|Gemini|Anthropic|OpenAI|DeepMind|Llama|Grok|AGI)\b/gi;
+      const matchedTopics = [...new Set(text.match(topicRegex) || [])];
+      const topics = matchedTopics.length > 0 ? matchedTopics : ['AI', 'Twitter'];
       
-      // Default topics and relevance score
-      const topics = ['AI', 'Twitter'];
-      const relevance_score = 80;
+      // Calculate a mock relevance score based on content length and keyword presence
+      const relevanceWords = ['AI', 'GPT', 'LLM', 'model', 'intelligence', 'neural', 'transformer'];
+      const wordCount = relevanceWords.reduce((count, word) => {
+        const regex = new RegExp(word, 'gi');
+        const matches = text.match(regex) || [];
+        return count + matches.length;
+      }, 0);
       
-      // Extract the first paragraph or sentence as title
-      const title = content.split('\n')[0].substring(0, 100) || "Twitter Data Update";
+      const relevance_score = Math.min(100, Math.max(10, wordCount * 10));
+      
+      // Extract the first line as title
+      const lines = text.split('\n').filter(line => line.trim());
+      const title = lines[0]?.substring(0, 100) || "Twitter Data Update";
       
       // Use the rest as summary
-      const summary = content.substring(title.length).trim() || content;
+      const summary = lines.slice(1).join('\n') || text;
       
       return {
         title,
@@ -145,9 +157,8 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
   };
   
   if (featured && content.length > 0) {
-    // Featured view for single item
+    // Featured view for single item with tabs
     const featuredItem = content[0];
-    const processedData = processTwitterData(featuredItem);
     
     return (
       <div className="relative">
@@ -157,17 +168,27 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
           </div>
         ) : (
           <div>
-            <div className="flex flex-wrap gap-1 mb-4">
-              {processedData.topics.map((topic, index) => (
-                <Badge key={index} variant="outline" className="text-xs">
-                  {topic}
-                </Badge>
-              ))}
-              <Badge variant="secondary" className="ml-auto">
-                Score: {processedData.relevance_score}
-              </Badge>
-            </div>
-            
+            <Tabs defaultValue="users" value={activeTab} onValueChange={setActiveTab} className="mb-4">
+              <TabsList className="grid grid-cols-2 w-full">
+                <TabsTrigger value="users" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  User Timelines
+                </TabsTrigger>
+                <TabsTrigger value="keywords" className="flex items-center gap-2">
+                  <Hash className="h-4 w-4" />
+                  Keyword Search
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="users" className="mt-4">
+                {renderFeaturedContent(featuredItem.twitter_data)}
+              </TabsContent>
+              
+              <TabsContent value="keywords" className="mt-4">
+                {renderFeaturedContent(featuredItem.twitter_keywordreturn)}
+              </TabsContent>
+            </Tabs>
+
             <div className="text-sm text-muted-foreground mb-3 flex items-center justify-between">
               <span>Updated {new Date(featuredItem.created_at).toLocaleString()}</span>
               <Button 
@@ -181,11 +202,6 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
               </Button>
             </div>
             
-            <div className="prose prose-sm max-w-none">
-              <h3 className="mb-2 text-lg font-medium">{processedData.title}</h3>
-              <div className="whitespace-pre-line text-sm">{processedData.summary}</div>
-            </div>
-            
             <div className="mt-4 flex justify-end">
               <Button variant="ghost" size="sm" onClick={handleManualCollection}>
                 Trigger New Collection
@@ -193,6 +209,33 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
             </div>
           </div>
         )}
+      </div>
+    );
+  }
+  
+  // Helper function to render featured content
+  function renderFeaturedContent(text: string | null) {
+    const processedData = processTwitterData(text);
+    
+    return (
+      <div>
+        <div className="flex flex-wrap gap-1 mb-4">
+          {processedData.topics.map((topic, index) => (
+            <Badge key={index} variant="outline" className="text-xs">
+              {topic}
+            </Badge>
+          ))}
+          <Badge variant="secondary" className="ml-auto">
+            Score: {processedData.relevance_score}
+          </Badge>
+        </div>
+        
+        <div className="prose prose-sm max-w-none">
+          <h3 className="mb-2 text-lg font-medium">{processedData.title}</h3>
+          <div className="whitespace-pre-line text-sm max-h-80 overflow-y-auto">
+            {processedData.summary}
+          </div>
+        </div>
       </div>
     );
   }
@@ -219,50 +262,87 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
             </Button>
           </div>
         ) : (
-          <div className="space-y-6">
-            {content.map((item) => {
-              const processedData = processTwitterData(item);
+          <div>
+            <Tabs defaultValue="users" className="w-full">
+              <TabsList className="grid grid-cols-2 w-full mb-4">
+                <TabsTrigger value="users" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  User Timelines
+                </TabsTrigger>
+                <TabsTrigger value="keywords" className="flex items-center gap-2">
+                  <Hash className="h-4 w-4" />
+                  Keyword Search
+                </TabsTrigger>
+              </TabsList>
               
-              return (
-                <div key={item.id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-lg">{processedData.title}</h3>
-                    <Badge variant="secondary">
-                      Score: {processedData.relevance_score}
-                    </Badge>
-                  </div>
-                  
-                  <p className="text-sm text-muted-foreground mb-1">
-                    {new Date(item.created_at).toLocaleString()}
-                  </p>
-                  
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {processedData.topics.map((topic, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        {topic}
-                      </Badge>
-                    ))}
-                  </div>
-                  
-                  <Separator className="my-3" />
-                  
-                  <div className="max-h-40 overflow-y-auto text-sm">
-                    <p className="whitespace-pre-line">{processedData.summary.substring(0, 300)}...</p>
-                  </div>
-                </div>
-              );
-            })}
+              <TabsContent value="users" className="space-y-6">
+                {content.map((item) => renderContentItem(item, 'twitter_data'))}
+              </TabsContent>
+              
+              <TabsContent value="keywords" className="space-y-6">
+                {content.map((item) => renderContentItem(item, 'twitter_keywordreturn'))}
+              </TabsContent>
+            </Tabs>
             
             {isLoading && (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
               </div>
             )}
+            
+            <div className="mt-4 flex justify-center">
+              <Button onClick={handleManualCollection} disabled={isLoading}>
+                Trigger New Collection
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>
     </Card>
   );
+  
+  // Helper function to render a content item
+  function renderContentItem(item: CollectedContentItem, field: 'twitter_data' | 'twitter_keywordreturn') {
+    const text = item[field] || null;
+    const processedData = processTwitterData(text);
+    
+    if (!text) {
+      return (
+        <div key={`${item.id}-${field}`} className="border rounded-lg p-4 text-center text-muted-foreground">
+          No {field === 'twitter_data' ? 'user timeline' : 'keyword search'} data available
+        </div>
+      );
+    }
+    
+    return (
+      <div key={`${item.id}-${field}`} className="border rounded-lg p-4">
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="font-semibold text-lg">{processedData.title}</h3>
+          <Badge variant="secondary">
+            Score: {processedData.relevance_score}
+          </Badge>
+        </div>
+        
+        <p className="text-sm text-muted-foreground mb-1">
+          {new Date(item.created_at).toLocaleString()}
+        </p>
+        
+        <div className="flex flex-wrap gap-1 mb-3">
+          {processedData.topics.map((topic, index) => (
+            <Badge key={index} variant="outline" className="text-xs">
+              {topic}
+            </Badge>
+          ))}
+        </div>
+        
+        <Separator className="my-3" />
+        
+        <div className="max-h-40 overflow-y-auto text-sm">
+          <p className="whitespace-pre-line">{processedData.summary.substring(0, 300)}...</p>
+        </div>
+      </div>
+    );
+  }
 };
 
 export default CollectedContent;

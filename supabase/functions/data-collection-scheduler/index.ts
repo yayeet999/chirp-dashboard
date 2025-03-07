@@ -1,6 +1,6 @@
 
 // Data Collection Scheduler
-// This edge function is triggered by a cron job to schedule data collection
+// This edge function is triggered by a cron job to schedule data collection for both user IDs and keywords
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -23,24 +23,48 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
   
   try {
-    console.log("Scheduler triggered, calling data collection function...");
+    console.log("Scheduler triggered, calling both data collection functions in parallel...");
     
-    // Call the data-collection function
-    const functionResponse = await supabase.functions.invoke('data-collection', {
-      method: 'POST',
-      body: {}
-    });
+    // Call both data collection functions in parallel
+    const [usersResponse, keywordsResponse] = await Promise.all([
+      supabase.functions.invoke('data-collection-users', {
+        method: 'POST',
+        body: {}
+      }),
+      supabase.functions.invoke('data-collection-keywords', {
+        method: 'POST',
+        body: {}
+      })
+    ]);
     
-    if (!functionResponse.error) {
-      console.log("Data collection function called successfully:", functionResponse.data);
+    // Check for errors in either function call
+    if (usersResponse.error) {
+      console.error("Error calling user data collection function:", usersResponse.error);
+    } else {
+      console.log("User data collection function called successfully:", usersResponse.data);
+    }
+    
+    if (keywordsResponse.error) {
+      console.error("Error calling keyword data collection function:", keywordsResponse.error);
+    } else {
+      console.log("Keyword data collection function called successfully:", keywordsResponse.data);
+    }
+    
+    // Return success if at least one function completed successfully
+    if (!usersResponse.error || !keywordsResponse.error) {
       return new Response(
-        JSON.stringify({ success: true, message: "Data collection scheduled" }),
+        JSON.stringify({ 
+          success: true, 
+          message: "Data collection scheduled",
+          users: usersResponse.error ? "failed" : "success",
+          keywords: keywordsResponse.error ? "failed" : "success"
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     } else {
-      console.error("Error calling data collection function:", functionResponse.error);
+      // Both functions failed
       return new Response(
-        JSON.stringify({ error: "Failed to schedule data collection", details: functionResponse.error }),
+        JSON.stringify({ error: "Both data collection functions failed" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }
