@@ -1,4 +1,3 @@
-
 // Data Collection Service
 // This edge function collects AI-related content from Perplexity Sonar API
 
@@ -45,18 +44,13 @@ Deno.serve(async (req) => {
   try {
     console.log("Starting data collection process...");
     
-    // Add a random delay between 1-5 minutes (in ms)
-    const delayMinutes = Math.floor(Math.random() * 5) + 1;
-    const delayMs = delayMinutes * 60 * 1000;
-    
-    console.log(`Adding a random delay of ${delayMinutes} minutes before collection...`);
-    await new Promise(resolve => setTimeout(resolve, delayMs));
+    // Removed random delay
+    console.log("Collecting data immediately...");
     
     // Collect data from Perplexity Sonar Pro API
     const aiContent = await fetchFromPerplexity(perplexityApiKey);
     
     // Process and standardize the collected data
-    // Note: Removing content_type and other fields that don't exist in the table schema
     const processedContent = {
       perplexity_data: {
         content: aiContent,
