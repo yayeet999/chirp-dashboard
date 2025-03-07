@@ -137,11 +137,13 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
   // Calculate time 5 hours ago (updated from 48 hours to 5 hours)
   const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
   
-  // List of 15 user IDs (reduced for debugging)
+  // List of user IDs (original list + newly added IDs)
   const userIds = [
       1353836358901501952, 1599587232175849472, 1605, 4398626122, 1720665183188922368,
       1963466798, 1618975370488999936, 1573399256836309009, 1275333333724000257, 3448284313,
-      6681172, 361044311, 1743487864934162432, 1584941134203289601, 1763012993682456576
+      6681172, 361044311, 1743487864934162432, 1584941134203289601, 1763012993682456576,
+      // New user IDs:
+      284333988, 1884131461130825728, 18737039, 82331877, 1881168794, 1589007443853340672, 60642052
   ];
   
   // Combined array for all tweets
