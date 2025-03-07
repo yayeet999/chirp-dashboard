@@ -11,7 +11,7 @@ import { Json } from "@/integrations/supabase/types";
 
 interface CollectedContentItem {
   id: string;
-  twitter_data: Json;
+  twitter_data: string;
   created_at: string;
 }
 
@@ -21,14 +21,6 @@ interface ProcessedContent {
   summary: string;
   topics: string[];
   relevance_score: number;
-}
-
-// Define a more specific type for our twitter data structure
-interface TwitterData {
-  content: string;
-  topics: string[];
-  relevance_score: number;
-  collected_at?: string;
 }
 
 interface CollectedContentProps {
@@ -110,7 +102,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     }
   };
 
-  // Process twitter_data for display
+  // Process twitter_data for display - now handling as text
   const processTwitterData = (item: CollectedContentItem): ProcessedContent => {
     if (!item.twitter_data) {
       return {
@@ -122,36 +114,12 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     }
 
     try {
-      const data = item.twitter_data;
-      let content = "";
-      let topics: string[] = ['AI', 'Twitter'];
-      let relevance_score = 80;
+      // Since twitter_data is now a string, we need to handle it accordingly
+      const content = item.twitter_data;
       
-      // Check if twitter_data is an object with the expected structure
-      if (typeof data === 'object' && data !== null) {
-        // Safely extract content
-        if ('content' in data && typeof data.content === 'string') {
-          content = data.content;
-        } else {
-          content = JSON.stringify(data);
-        }
-        
-        // Safely extract topics
-        if ('topics' in data && Array.isArray(data.topics)) {
-          topics = data.topics.filter(t => typeof t === 'string') as string[];
-        }
-        
-        // Safely extract relevance_score
-        if ('relevance_score' in data && typeof data.relevance_score === 'number') {
-          relevance_score = data.relevance_score;
-        }
-      } else if (typeof data === 'string') {
-        // If it's a plain string, use it as content
-        content = data;
-      } else {
-        // Fallback for any other type
-        content = JSON.stringify(data);
-      }
+      // Default topics and relevance score
+      const topics = ['AI', 'Twitter'];
+      const relevance_score = 80;
       
       // Extract the first paragraph or sentence as title
       const title = content.split('\n')[0].substring(0, 100) || "Twitter Data Update";

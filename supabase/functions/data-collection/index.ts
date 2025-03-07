@@ -52,11 +52,9 @@ Deno.serve(async (req) => {
     const twitterContent = await fetchFromTwitter(twitterBearerToken);
     
     // Process and standardize the collected data
+    // Store raw text content in the twitter_data field
     const processedContent = {
-      twitter_data: {
-        content: twitterContent,
-        collected_at: new Date().toISOString()
-      },
+      twitter_data: twitterContent,
       created_at: new Date().toISOString()
     };
     

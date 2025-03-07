@@ -13,17 +13,17 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          twitter_data: Json | null
+          twitter_data: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
-          twitter_data?: Json | null
+          twitter_data?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
-          twitter_data?: Json | null
+          twitter_data?: string | null
         }
         Relationships: []
       }
