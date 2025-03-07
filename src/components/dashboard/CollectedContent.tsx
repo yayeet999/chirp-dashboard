@@ -101,7 +101,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     }
   };
 
-  // Process raw Perplexity data for display
+  // Process perplexity_data for display
   const processPerplexityData = (item: CollectedContentItem): ProcessedContent => {
     if (!item.perplexity_data) {
       return {
@@ -113,13 +113,10 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     }
 
     try {
-      // If perplexity_data is a string, try to parse it as JSON
-      const data = typeof item.perplexity_data === 'string' 
-        ? JSON.parse(item.perplexity_data) 
-        : item.perplexity_data;
+      const data = item.perplexity_data;
       
-      // Extract content based on expected Perplexity response structure
-      const content = data.choices?.[0]?.message?.content || data.content || '';
+      // Extract content based on the new structure
+      const content = typeof data.content === 'string' ? data.content : JSON.stringify(data);
       
       // Extract the first paragraph or sentence as title
       const title = content.split('\n')[0].substring(0, 100) || "AI Content Update";
@@ -127,19 +124,20 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
       // Use the rest as summary
       const summary = content.substring(title.length).trim() || content;
       
-      // Extract potential topics from the content
-      const topicKeywords = ['AI', 'ML', 'GPT', 'LLM', 'Neural Networks', 'Machine Learning', 'Deep Learning'];
-      const topics = topicKeywords.filter(keyword => 
-        content.toLowerCase().includes(keyword.toLowerCase())
-      );
+      // Get topics from the new structure or extract them if not available
+      const topics = data.topics && Array.isArray(data.topics) 
+        ? data.topics 
+        : ['AI', 'Technology'];
       
-      // Assign a reasonable relevance score
-      const relevance_score = Math.min(topics.length * 20, 100) || 80;
+      // Get relevance score from the new structure or set a default
+      const relevance_score = typeof data.relevance_score === 'number' 
+        ? data.relevance_score 
+        : 80;
       
       return {
         title,
         summary,
-        topics: topics.length > 0 ? topics : ['AI', 'Technology'],
+        topics,
         relevance_score
       };
     } catch (e) {

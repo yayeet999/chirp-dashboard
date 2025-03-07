@@ -56,14 +56,14 @@ Deno.serve(async (req) => {
     const aiContent = await fetchFromPerplexity(perplexityApiKey);
     
     // Process and standardize the collected data
+    // Note: Removing content_type and other fields that don't exist in the table schema
     const processedContent = {
-      source: 'perplexity',
-      content_type: 'article',
-      title: 'AI Daily Update',
-      summary: aiContent,
-      published_date: new Date().toISOString(),
-      topics: extractTopics(aiContent),
-      relevance_score: calculateRelevanceScore(aiContent),
+      perplexity_data: {
+        content: aiContent,
+        topics: extractTopics(aiContent),
+        relevance_score: calculateRelevanceScore(aiContent),
+        collected_at: new Date().toISOString()
+      },
       created_at: new Date().toISOString()
     };
     
