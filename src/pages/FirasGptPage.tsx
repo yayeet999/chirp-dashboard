@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Bot, Users, MessageCircle, Heart, BarChart2, Repeat, TrendingUp, Eye, ArrowUpRight, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,7 +60,7 @@ const FirasGptPage: React.FC = () => {
           <div>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
-              Latest AI Content Update
+              Latest Sonar-API Search Results
             </CardTitle>
             <CardDescription>
               Most recent data collected from Perplexity API
