@@ -114,12 +114,25 @@ async function fetchFromPerplexity(apiKey: string): Promise<string> {
   
   const [currentDate, oneDayAgo, twoDaysAgo, threeDaysAgo] = dates;
   
-  // Construct a dynamic prompt with the calculated dates
-  const prompt = `Provide an in-depth, highly detailed report on the major news, significant announcements, and the biggest updates from the past 4 days, strictly from ${threeDaysAgo} to ${currentDate}, including today, related to artificial intelligence. Focus on large language models, groundbreaking new AI tools, revolutionary AI models, major programming or coding advancements tied to AI, and the most important AI conversations or developments. 
-  
-  Categorize the updates by day, starting with ${currentDate}, and going back to ${threeDaysAgo}, using only the exact publication dates from the sources. If a date is unclear or unavailable, note it as 'date uncertain.' 
-  
-  Include extensive examples, thorough descriptions of what makes each update significant, the potential impact on the AI field, and any notable details about how these developments came about. I want a lengthy and comprehensive output with as much information as possible.`;
+  // Updated prompt to focus specifically on new model releases and major AI announcements
+  const prompt = `Provide a comprehensive report ONLY on BRAND NEW AI model releases and MAJOR AI announcements that were officially released or announced between ${threeDaysAgo} and ${currentDate} (inclusive).
+
+Focus EXCLUSIVELY on:
+1. NEW model releases/announcements from major AI companies including OpenAI, Anthropic, Alibaba, Qwen, DeepSeek, Mistral, Llama, Meta, Amazon, Google/Gemini, and other significant AI labs
+2. MAJOR industry-changing AI announcements, product launches, or breakthroughs 
+3. Significant AI industry events, conferences, or regulatory developments that occurred within this exact date range
+
+Important requirements:
+- ONLY include information about announcements that were ACTUALLY MADE during this time period (${threeDaysAgo} to ${currentDate})
+- DO NOT include previous announcements or old news repackaged as recent
+- DO NOT include speculation, rumors, or analysis of older announcements
+- Verify all dates carefully using only exact release/announcement dates from official sources
+- If a date is unclear or cannot be verified, explicitly mark it as "date unconfirmed"
+- Organize information chronologically by day, starting with ${currentDate} and going back to ${threeDaysAgo}
+- For each entry, include the exact date of the announcement, the organization involved, and a detailed description of what was announced
+- If there were no significant announcements on a particular day, explicitly state "No major AI announcements on this day" for that date
+
+Provide thorough details on what makes each announcement significant, its potential impact on the AI landscape, and any notable technical specifications or capabilities of new models.`;
 
   const requestBody = {
     model: "sonar",
@@ -130,7 +143,7 @@ async function fetchFromPerplexity(apiKey: string): Promise<string> {
       },
     ],
     max_tokens: 8192,
-    search_recency_filter: "week", // Updated to "week" to cover the 4-day range
+    search_recency_filter: "week", // Use "week" to cover the 4-day range
     return_citations: false,
   };
 
