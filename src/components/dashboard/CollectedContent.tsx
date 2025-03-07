@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,14 @@ interface ProcessedContent {
   summary: string;
   topics: string[];
   relevance_score: number;
+}
+
+// Define a more specific type for our perplexity data structure
+interface PerplexityData {
+  content: string;
+  topics: string[];
+  relevance_score: number;
+  collected_at?: string;
 }
 
 interface CollectedContentProps {
@@ -114,25 +123,41 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
 
     try {
       const data = item.perplexity_data;
+      let content = "";
+      let topics: string[] = ['AI', 'Technology'];
+      let relevance_score = 80;
       
-      // Extract content based on the new structure
-      const content = typeof data.content === 'string' ? data.content : JSON.stringify(data);
+      // Check if perplexity_data is an object with the expected structure
+      if (typeof data === 'object' && data !== null) {
+        // Safely extract content
+        if ('content' in data && typeof data.content === 'string') {
+          content = data.content;
+        } else {
+          content = JSON.stringify(data);
+        }
+        
+        // Safely extract topics
+        if ('topics' in data && Array.isArray(data.topics)) {
+          topics = data.topics.filter(t => typeof t === 'string') as string[];
+        }
+        
+        // Safely extract relevance_score
+        if ('relevance_score' in data && typeof data.relevance_score === 'number') {
+          relevance_score = data.relevance_score;
+        }
+      } else if (typeof data === 'string') {
+        // If it's a plain string, use it as content
+        content = data;
+      } else {
+        // Fallback for any other type
+        content = JSON.stringify(data);
+      }
       
       // Extract the first paragraph or sentence as title
       const title = content.split('\n')[0].substring(0, 100) || "AI Content Update";
       
       // Use the rest as summary
       const summary = content.substring(title.length).trim() || content;
-      
-      // Get topics from the new structure or extract them if not available
-      const topics = data.topics && Array.isArray(data.topics) 
-        ? data.topics 
-        : ['AI', 'Technology'];
-      
-      // Get relevance score from the new structure or set a default
-      const relevance_score = typeof data.relevance_score === 'number' 
-        ? data.relevance_score 
-        : 80;
       
       return {
         title,
