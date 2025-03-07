@@ -1,8 +1,7 @@
-// Data Collection Service for Keywords
-// This edge function collects AI-related content from Twitter API using keywords
+// Data Collection Service for Perplexity AI
+// This edge function collects AI-related content from Perplexity API using Sonar model
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import axiod from "https://deno.land/x/axiod@0.26.2/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,11 +17,11 @@ Deno.serve(async (req) => {
   const environmentVariables = Deno.env.toObject();
   const supabaseUrl = environmentVariables.SUPABASE_URL || '';
   const supabaseAnonKey = environmentVariables.SUPABASE_ANON_KEY || '';
-  const twitterBearerToken = environmentVariables.TWITTER_BEARER_TOKEN || '';
+  const perplexityApiKey = environmentVariables.PERPLEXITY_API_KEY || '';
   
   // Validate required environment variables
-  if (!twitterBearerToken) {
-    console.error("Missing TWITTER_BEARER_TOKEN environment variable");
+  if (!perplexityApiKey) {
+    console.error("Missing PERPLEXITY_API_KEY environment variable");
     return new Response(
       JSON.stringify({ error: "Server configuration error" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
@@ -33,12 +32,12 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
   
   try {
-    console.log("Starting keyword-based data collection process...");
+    console.log("Starting Perplexity data collection process...");
     
-    // Collect data from Twitter API
-    const twitterContent = await fetchFromTwitterKeywords(twitterBearerToken);
+    // Collect data from Perplexity API
+    const perplexityData = await fetchFromPerplexity(perplexityApiKey);
     
-    // Get the latest record to update with keyword data
+    // Get the latest record to update with Perplexity data
     const { data: latestRecord, error: fetchError } = await supabase
       .from('collected_content')
       .select('id')
@@ -46,125 +45,115 @@ Deno.serve(async (req) => {
       .limit(1);
       
     if (fetchError || !latestRecord || latestRecord.length === 0) {
-      console.log("No existing record found, creating new record for keyword data");
-      // Create a new record with keyword data
+      console.log("No existing record found, creating new record for Perplexity data");
+      // Create a new record with Perplexity data
       const { error: insertError } = await supabase
         .from('collected_content')
         .insert([{
-          twitter_keywordreturn: twitterContent,
+          perplexity_data: perplexityData,
           created_at: new Date().toISOString()
         }]);
         
       if (insertError) {
-        console.error("Error creating record for keyword data:", insertError);
+        console.error("Error creating record for Perplexity data:", insertError);
         return new Response(
-          JSON.stringify({ error: "Failed to store keyword data" }),
+          JSON.stringify({ error: "Failed to store Perplexity data" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
         );
       }
     } else {
-      // Update the latest record with keyword data
+      // Update the latest record with Perplexity data
       const { error: updateError } = await supabase
         .from('collected_content')
-        .update({ twitter_keywordreturn: twitterContent })
+        .update({ perplexity_data: perplexityData })
         .eq('id', latestRecord[0].id);
         
       if (updateError) {
-        console.error("Error updating keyword data:", updateError);
+        console.error("Error updating Perplexity data:", updateError);
         return new Response(
-          JSON.stringify({ error: "Failed to update keyword data" }),
+          JSON.stringify({ error: "Failed to update Perplexity data" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
         );
       }
     }
     
-    console.log("Keyword data collection completed successfully");
+    console.log("Perplexity data collection completed successfully");
     return new Response(
-      JSON.stringify({ success: true, message: "Keyword data collection completed" }),
+      JSON.stringify({ success: true, message: "Perplexity data collection completed" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
     
   } catch (error) {
-    console.error("Keyword data collection failed:", error);
+    console.error("Perplexity data collection failed:", error);
     return new Response(
-      JSON.stringify({ error: "Keyword data collection failed", details: error.message }),
+      JSON.stringify({ error: "Perplexity data collection failed", details: error.message }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
 });
 
-// Function to fetch data from Twitter using keywords
-async function fetchFromTwitterKeywords(bearerToken: string): Promise<string> {
-  console.log("Fetching data from Twitter using keywords...");
-  
-  // Base URL for Twitter API v2
-  const API_BASE_URL = 'https://api.twitter.com/2';
-  
-  // Calculate time 48 hours ago (updated from 24 to 48 hours)
-  const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-  
-  // List of 30 keywords/phrases (reduced for debugging)
-  const keywords = [
-      'LLM', 'Prompt Engineering', 'DeepSeek', 'OpenAI', 'ChatGPT', 'GPT-4o', 'GPT-4.5', 'AGI',
-      'Mistral', 'Claude 3.5', 'Claude 3 sonnet', 'Claude Opus', 'Anthropic', 'Grok 3', 'Llama 3',
-      'Gemini Pro', 'Gemini Flash', 'Gemini Reasoning', 'Qwen', 'Alibaba AI', 'Meta AI', 'xAI Musk',
-      'Hugging Face AI', 'DeepMind', 'Microsoft Phi', 'NVIDIA GPU', 'NVIDIA H100', 'generative AI',
-      'reinforcement learning', 'transformer models'
-  ];
-  
-  // Combined array for all tweets
-  let allTweets: string[] = [];
-  
-  // Function to fetch tweets by keywords with 50+ likes, excluding retweets
-  async function fetchTweetsByKeywords(keywordBatch: string[]): Promise<void> {
-    const formattedKeywords = keywordBatch.map(keyword => {
-      if (keyword.includes(' ')) {
-        return `"${keyword}"`;
-      } else {
-        return keyword;
-      }
-    });
-    const query = `${formattedKeywords.join(' OR ')} min_faves:50 -is:retweet`;
-    console.log(`Searching with query: ${query.substring(0, 100)}...`);
-    
-    try {
-      const response = await axiod.get(`${API_BASE_URL}/tweets/search/recent`, {
-        headers: { Authorization: `Bearer ${bearerToken}` },
-        params: {
-          query: query,
-          start_time: fortyEightHoursAgo,
-          'tweet.fields': 'public_metrics,created_at',
-          max_results: 20,
-        },
-      });
-  
-      const tweets = response.data.data || [];
-      console.log(`Retrieved ${tweets.length} tweets for keyword batch`);
-      
-      tweets.forEach((tweet: any) => {
-        const likes = tweet.public_metrics?.like_count || 0;
-        allTweets.push(`[Keyword Search] ${tweet.text} (Likes: ${likes}, Created: ${tweet.created_at})`);
-      });
-    } catch (error) {
-      console.error(`Error searching keywords:`, error.message);
-      if (error.response) {
-        console.error('Twitter API response:', error.response.data);
-      }
-    }
-  }
+// Function to fetch data from Perplexity API using Sonar model
+async function fetchFromPerplexity(apiKey: string): Promise<string> {
+  console.log("Fetching data from Perplexity API using Sonar model...");
   
   try {
-    // Fetch tweets by keywords (split into batches due to 512-char limit)
-    const batchSize = 10; // Adjust based on query length; 10 keeps it well under 512 chars
-    for (let i = 0; i < keywords.length; i += batchSize) {
-      const keywordBatch = keywords.slice(i, i + batchSize);
-      await fetchTweetsByKeywords(keywordBatch);
+    // Define a list of AI-related prompts to get information about
+    const prompts = [
+      "What are the latest developments and news in large language models in the past 48 hours?",
+      "What have been the most significant AI research papers or breakthroughs in the past two days?",
+      "What are the current discussions around AI alignment and safety happening right now?",
+      "What news has been reported about companies like OpenAI, Anthropic, Google AI, and Meta AI in the past 48 hours?",
+      "What are the recent developments in open-source AI models like Llama, Mistral, or other new models?"
+    ];
+    
+    // Randomly select one prompt to keep requests diverse
+    const selectedPrompt = prompts[Math.floor(Math.random() * prompts.length)];
+    
+    console.log(`Selected prompt: ${selectedPrompt}`);
+    
+    // Make the API call to Perplexity
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-sonar-small-128k-online',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an AI researcher summarizing the latest AI developments. Be precise, factual, and comprehensive. Focus on concrete developments, not speculations. Provide dates and sources when available.'
+          },
+          {
+            role: 'user',
+            content: selectedPrompt
+          }
+        ],
+        temperature: 0.2,
+        top_p: 0.9,
+        max_tokens: 1500,
+        search_domain_filter: ['perplexity.ai'],
+        search_recency_filter: 'day',
+        frequency_penalty: 1,
+        presence_penalty: 0
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Perplexity API error: ${response.status} ${errorText}`);
     }
     
-    // Format the tweets into a single string
-    return allTweets.join('\n\n');
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content || "No content returned from Perplexity";
+    
+    console.log("Successfully retrieved data from Perplexity API");
+    
+    // Format the result with prompt information
+    return `[Perplexity Sonar] Prompt: ${selectedPrompt}\n\n${content}`;
   } catch (error) {
-    console.error('Error in fetchFromTwitterKeywords:', error);
-    throw new Error(`Failed to fetch Twitter keyword data: ${error.message}`);
+    console.error('Error in fetchFromPerplexity:', error);
+    throw new Error(`Failed to fetch Perplexity data: ${error.message}`);
   }
 }

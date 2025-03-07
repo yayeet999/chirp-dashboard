@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Bot, Users, MessageCircle, Heart, BarChart2, Repeat, TrendingUp, Eye, ArrowUpRight, FileText, User, Hash } from "lucide-react";
+import { Bot, Users, MessageCircle, Heart, BarChart2, Repeat, TrendingUp, Eye, ArrowUpRight, FileText, User, Hash, BookOpen } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -50,7 +50,7 @@ const FirasGptPage: React.FC = () => {
               FirasGPT Analytics
               <StatusBadge status="active" />
             </h1>
-            <p className="text-sm text-muted-foreground">Tweet performance metrics</p>
+            <p className="text-sm text-muted-foreground">AI content analytics</p>
           </div>
         </div>
       </div>
@@ -61,10 +61,10 @@ const FirasGptPage: React.FC = () => {
           <div>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
-              Latest Twitter Data
+              Latest AI Content
             </CardTitle>
             <CardDescription>
-              Collected data from Twitter API (User Timelines & Keyword Search)
+              Collected data from Twitter API (User Timelines) & Perplexity AI
             </CardDescription>
           </div>
         </CardHeader>
@@ -101,20 +101,20 @@ const FirasGptPage: React.FC = () => {
         <Card className="glass-card">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Hash className="h-4 w-4 text-primary" />
-              Keyword Search Data
+              <BookOpen className="h-4 w-4 text-primary" />
+              Perplexity AI Data
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
               <MetricCard
-                title="Keywords"
-                value="30"
+                title="AI Topics"
+                value="5+"
                 icon={<TrendingUp className="h-5 w-5 text-primary" />}
               />
               <MetricCard
-                title="Trending Posts"
-                value="N/A"
+                title="Data Freshness"
+                value="48h"
                 icon={<Eye className="h-5 w-5 text-primary" />}
               />
             </div>
@@ -151,7 +151,7 @@ const FirasGptPage: React.FC = () => {
         <CardHeader>
           <CardTitle>Performance Trends</CardTitle>
           <CardDescription>
-            Tweet engagement metrics over time
+            AI content engagement metrics over time
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -170,7 +170,7 @@ const FirasGptPage: React.FC = () => {
         <CardHeader>
           <CardTitle>Collected Content</CardTitle>
           <CardDescription>
-            Historical collected data from Twitter
+            Historical collected data from Twitter and Perplexity
           </CardDescription>
         </CardHeader>
         <CardContent>

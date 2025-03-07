@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 interface CollectedContentItem {
   id: string;
   twitter_data: string;
-  twitter_keywordreturn: string;
+  perplexity_data: string;
   created_at: string;
 }
 
@@ -87,7 +87,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
       
       toast({
         title: "Success",
-        description: "Data collection has been triggered for both user and keyword searches",
+        description: "Data collection has been triggered for both user timelines and Perplexity search",
       });
       
       // Wait a moment and then refresh the content
@@ -156,6 +156,69 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     }
   };
   
+  // Process perplexity_data for display
+  const processPerplexityData = (text: string | null): ProcessedContent => {
+    if (!text) {
+      return {
+        title: "No Perplexity Data Available",
+        summary: "No data available",
+        topics: [],
+        relevance_score: 0
+      };
+    }
+
+    try {
+      // Extract topics using some simple heuristics
+      const topicRegex = /\b(AI|LLM|GPT|Claude|Mistral|Gemini|Anthropic|OpenAI|DeepMind|Llama|Grok|AGI)\b/gi;
+      const matchedTopics = [...new Set(text.match(topicRegex) || [])];
+      const topics = matchedTopics.length > 0 ? matchedTopics : ['AI', 'Perplexity'];
+      
+      // Calculate a mock relevance score based on content length and keyword presence
+      const relevanceWords = ['AI', 'GPT', 'LLM', 'model', 'intelligence', 'neural', 'transformer'];
+      const wordCount = relevanceWords.reduce((count, word) => {
+        const regex = new RegExp(word, 'gi');
+        const matches = text.match(regex) || [];
+        return count + matches.length;
+      }, 0);
+      
+      const relevance_score = Math.min(100, Math.max(10, wordCount * 10));
+      
+      // Extract the prompt line as title if available
+      const lines = text.split('\n').filter(line => line.trim());
+      let title = "Perplexity AI Insights";
+      let startSummaryIndex = 0;
+      
+      // Look for the prompt line
+      if (lines[0] && lines[0].includes('[Perplexity Sonar]')) {
+        title = lines[0].substring(0, 100);
+        startSummaryIndex = 1;
+        
+        // Skip the blank line after the prompt if it exists
+        if (lines[1] && lines[1].trim() === '') {
+          startSummaryIndex = 2;
+        }
+      }
+      
+      // Use the rest as summary
+      const summary = lines.slice(startSummaryIndex).join('\n') || text;
+      
+      return {
+        title,
+        summary,
+        topics,
+        relevance_score
+      };
+    } catch (e) {
+      console.error("Error processing Perplexity data:", e);
+      return {
+        title: "Error Processing Data",
+        summary: "There was an error processing this content",
+        topics: ['Error'],
+        relevance_score: 0
+      };
+    }
+  };
+  
   if (featured && content.length > 0) {
     // Featured view for single item with tabs
     const featuredItem = content[0];
@@ -174,18 +237,18 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
                   <User className="h-4 w-4" />
                   User Timelines
                 </TabsTrigger>
-                <TabsTrigger value="keywords" className="flex items-center gap-2">
+                <TabsTrigger value="perplexity" className="flex items-center gap-2">
                   <Hash className="h-4 w-4" />
-                  Keyword Search
+                  Perplexity AI
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="users" className="mt-4">
-                {renderFeaturedContent(featuredItem.twitter_data)}
+                {renderFeaturedContent(featuredItem.twitter_data, "twitter")}
               </TabsContent>
               
-              <TabsContent value="keywords" className="mt-4">
-                {renderFeaturedContent(featuredItem.twitter_keywordreturn)}
+              <TabsContent value="perplexity" className="mt-4">
+                {renderFeaturedContent(featuredItem.perplexity_data, "perplexity")}
               </TabsContent>
             </Tabs>
 
@@ -214,8 +277,10 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
   }
   
   // Helper function to render featured content
-  function renderFeaturedContent(text: string | null) {
-    const processedData = processTwitterData(text);
+  function renderFeaturedContent(text: string | null, type: "twitter" | "perplexity") {
+    const processedData = type === "twitter" 
+      ? processTwitterData(text)
+      : processPerplexityData(text);
     
     return (
       <div>
@@ -243,7 +308,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
   return (
     <Card className={`${featured ? '' : 'glass-card'}`}>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Latest Twitter Content</CardTitle>
+        <CardTitle>Latest AI Content</CardTitle>
         <Button 
           variant="outline" 
           size="icon" 
@@ -269,18 +334,18 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
                   <User className="h-4 w-4" />
                   User Timelines
                 </TabsTrigger>
-                <TabsTrigger value="keywords" className="flex items-center gap-2">
+                <TabsTrigger value="perplexity" className="flex items-center gap-2">
                   <Hash className="h-4 w-4" />
-                  Keyword Search
+                  Perplexity AI
                 </TabsTrigger>
               </TabsList>
               
               <TabsContent value="users" className="space-y-6">
-                {content.map((item) => renderContentItem(item, 'twitter_data'))}
+                {content.map((item) => renderContentItem(item, 'twitter_data', 'twitter'))}
               </TabsContent>
               
-              <TabsContent value="keywords" className="space-y-6">
-                {content.map((item) => renderContentItem(item, 'twitter_keywordreturn'))}
+              <TabsContent value="perplexity" className="space-y-6">
+                {content.map((item) => renderContentItem(item, 'perplexity_data', 'perplexity'))}
               </TabsContent>
             </Tabs>
             
@@ -302,14 +367,20 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
   );
   
   // Helper function to render a content item
-  function renderContentItem(item: CollectedContentItem, field: 'twitter_data' | 'twitter_keywordreturn') {
+  function renderContentItem(
+    item: CollectedContentItem, 
+    field: 'twitter_data' | 'perplexity_data',
+    type: 'twitter' | 'perplexity'
+  ) {
     const text = item[field] || null;
-    const processedData = processTwitterData(text);
+    const processedData = type === "twitter" 
+      ? processTwitterData(text)
+      : processPerplexityData(text);
     
     if (!text) {
       return (
         <div key={`${item.id}-${field}`} className="border rounded-lg p-4 text-center text-muted-foreground">
-          No {field === 'twitter_data' ? 'user timeline' : 'keyword search'} data available
+          No {type === 'twitter' ? 'user timeline' : 'Perplexity AI'} data available
         </div>
       );
     }
