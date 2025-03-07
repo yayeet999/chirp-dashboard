@@ -1,4 +1,3 @@
-
 // Data Collection Service
 // This edge function collects AI-related content from Twitter API
 
@@ -55,8 +54,6 @@ Deno.serve(async (req) => {
     const processedContent = {
       twitter_data: {
         content: twitterContent,
-        topics: extractTopics(twitterContent),
-        relevance_score: calculateRelevanceScore(twitterContent),
         collected_at: new Date().toISOString()
       },
       created_at: new Date().toISOString()
@@ -171,7 +168,7 @@ async function fetchFromTwitter(bearerToken: string): Promise<string> {
   // Combined array for all tweets
   let allTweets: string[] = [];
   
-  // Function to fetch tweets from a single user ID
+  // Function to fetch tweets from a single user ID, excluding retweets and replies
   async function fetchTweetsFromUser(userId: number): Promise<void> {
     try {
       const response = await axiod.get(`${API_BASE_URL}/users/${userId}/tweets`, {
@@ -180,6 +177,7 @@ async function fetchFromTwitter(bearerToken: string): Promise<string> {
           start_time: twentyFourHoursAgo,
           'tweet.fields': 'created_at',
           max_results: 100,
+          exclude: 'retweets,replies',  // Exclude both retweets and replies
         },
       });
   
@@ -190,7 +188,7 @@ async function fetchFromTwitter(bearerToken: string): Promise<string> {
     }
   }
   
-  // Function to fetch tweets by keywords with 50+ likes
+  // Function to fetch tweets by keywords with 50+ likes, excluding retweets
   async function fetchTweetsByKeywords(keywordBatch: string[]): Promise<void> {
     const query = `${keywordBatch.join(' OR ')} min_faves:50 -is:retweet`;
     try {
@@ -227,55 +225,7 @@ async function fetchFromTwitter(bearerToken: string): Promise<string> {
     // Format the tweets into a single string
     return allTweets.join('\n\n');
   } catch (error) {
-    console.error('Error in fetchAllTweets:', error);
+    console.error('Error in fetchFromTwitter:', error);
     throw new Error(`Failed to fetch Twitter data: ${error.message}`);
   }
-}
-
-// Function to extract topics from the AI content
-function extractTopics(content: string): string[] {
-  // Simple keyword-based topic extraction
-  const topicKeywords = [
-    "LLM", "GPT", "AI model", "machine learning", "deep learning",
-    "neural network", "transformer", "generative AI", "diffusion model",
-    "reinforcement learning", "AI research", "large language model",
-    "OpenAI", "Anthropic", "Google AI", "Meta AI", "Microsoft AI",
-    "AI ethics", "AI safety", "prompt engineering", "fine-tuning",
-    "AI application", "computer vision", "NLP", "natural language processing"
-  ];
-  
-  const topics = new Set<string>();
-  
-  for (const keyword of topicKeywords) {
-    if (content.toLowerCase().includes(keyword.toLowerCase())) {
-      topics.add(keyword);
-    }
-  }
-  
-  // Limit to top 10 topics
-  return Array.from(topics).slice(0, 10);
-}
-
-// Function to calculate relevance score based on AI keywords
-function calculateRelevanceScore(content: string): number {
-  const aiKeywords = [
-    "large language model", "LLM", "artificial intelligence", "AI", "machine learning",
-    "deep learning", "neural network", "GPT", "transformer", "generative AI",
-    "diffusion model", "reinforcement learning", "computer vision", "NLP"
-  ];
-  
-  // Count keyword occurrences
-  let keywordCount = 0;
-  for (const keyword of aiKeywords) {
-    const regex = new RegExp(keyword, 'gi');
-    const matches = content.match(regex);
-    if (matches) {
-      keywordCount += matches.length;
-    }
-  }
-  
-  // Normalize score to 0-100 range
-  // Assume a good article has at least 30 keyword mentions
-  const score = Math.min(100, (keywordCount / 30) * 100);
-  return Math.round(score);
 }
