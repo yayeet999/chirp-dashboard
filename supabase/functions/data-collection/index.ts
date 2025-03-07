@@ -161,7 +161,7 @@ async function fetchFromPerplexity(apiKey: string): Promise<string> {
   const [currentDate, oneDayAgo, twoDaysAgo, threeDaysAgo] = dates;
   
   // Construct a dynamic prompt with the calculated dates
-  const prompt = `Provide an in-depth, highly detailed report on the major news, significant announcements, and the biggest updates from the past 4 days, strictly from ${threeDaysAgo} to ${currentDate}, including today, related to artificial intelligence. Focus on large language models, groundbreaking new AI tools, revolutionary AI models, major programming or coding advancements tied to AI, and the most important AI conversations or developments. 
+  const prompt = `Provide an in-depth, highly detailed report on the major news, significant announcements, and the biggest updates from the past 4 days, strictly from ${threeDaysAgo} to ${currentDate}, including today, related to artificial intelligence. Focus on new large language model releases, benchmark comparisons and updates, newly released and/or announced AI tools, brand new AI models, trending AI companies and/or products, major programming or coding advancements tied to AI, and the most important AI TRENDING conversations or developments. 
   
   Categorize the updates by day, starting with ${currentDate}, and going back to ${threeDaysAgo}, using only the exact publication dates from the sources. If a date is unclear or unavailable, note it as 'date uncertain.' 
   
