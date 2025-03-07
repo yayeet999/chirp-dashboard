@@ -1,4 +1,3 @@
-
 // Data Collection Service for Keywords
 // This edge function collects AI-related content from Twitter API using keywords
 
@@ -118,7 +117,14 @@ async function fetchFromTwitterKeywords(bearerToken: string): Promise<string> {
   
   // Function to fetch tweets by keywords with 50+ likes, excluding retweets
   async function fetchTweetsByKeywords(keywordBatch: string[]): Promise<void> {
-    const query = `${keywordBatch.join(' OR ')} min_faves:50 -is:retweet`;
+    const formattedKeywords = keywordBatch.map(keyword => {
+      if (keyword.includes(' ')) {
+        return `"${keyword}"`;
+      } else {
+        return keyword;
+      }
+    });
+    const query = `${formattedKeywords.join(' OR ')} min_faves:50 -is:retweet`;
     console.log(`Searching with query: ${query.substring(0, 100)}...`);
     
     try {
@@ -141,6 +147,9 @@ async function fetchFromTwitterKeywords(bearerToken: string): Promise<string> {
       });
     } catch (error) {
       console.error(`Error searching keywords:`, error.message);
+      if (error.response) {
+        console.error('Twitter API response:', error.response.data);
+      }
     }
   }
   
