@@ -54,16 +54,16 @@ const FirasGptPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Featured Content Section - NEW */}
+      {/* Featured Content Section */}
       <Card className="glass-card border-primary/20">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
-              Latest Sonar-API Search Results
+              Latest Twitter Data
             </CardTitle>
             <CardDescription>
-              Most recent data collected from Perplexity API
+              Most recent data collected from Twitter API
             </CardDescription>
           </div>
         </CardHeader>

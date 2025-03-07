@@ -11,7 +11,7 @@ import { Json } from "@/integrations/supabase/types";
 
 interface CollectedContentItem {
   id: string;
-  perplexity_data: Json;
+  twitter_data: Json;
   created_at: string;
 }
 
@@ -23,8 +23,8 @@ interface ProcessedContent {
   relevance_score: number;
 }
 
-// Define a more specific type for our perplexity data structure
-interface PerplexityData {
+// Define a more specific type for our twitter data structure
+interface TwitterData {
   content: string;
   topics: string[];
   relevance_score: number;
@@ -110,9 +110,9 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     }
   };
 
-  // Process perplexity_data for display
-  const processPerplexityData = (item: CollectedContentItem): ProcessedContent => {
-    if (!item.perplexity_data) {
+  // Process twitter_data for display
+  const processTwitterData = (item: CollectedContentItem): ProcessedContent => {
+    if (!item.twitter_data) {
       return {
         title: "No Title Available",
         summary: "No data available",
@@ -122,12 +122,12 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     }
 
     try {
-      const data = item.perplexity_data;
+      const data = item.twitter_data;
       let content = "";
-      let topics: string[] = ['AI', 'Technology'];
+      let topics: string[] = ['AI', 'Twitter'];
       let relevance_score = 80;
       
-      // Check if perplexity_data is an object with the expected structure
+      // Check if twitter_data is an object with the expected structure
       if (typeof data === 'object' && data !== null) {
         // Safely extract content
         if ('content' in data && typeof data.content === 'string') {
@@ -154,7 +154,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
       }
       
       // Extract the first paragraph or sentence as title
-      const title = content.split('\n')[0].substring(0, 100) || "AI Content Update";
+      const title = content.split('\n')[0].substring(0, 100) || "Twitter Data Update";
       
       // Use the rest as summary
       const summary = content.substring(title.length).trim() || content;
@@ -166,7 +166,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
         relevance_score
       };
     } catch (e) {
-      console.error("Error processing Perplexity data:", e);
+      console.error("Error processing Twitter data:", e);
       return {
         title: "Error Processing Data",
         summary: "There was an error processing this content",
@@ -179,7 +179,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
   if (featured && content.length > 0) {
     // Featured view for single item
     const featuredItem = content[0];
-    const processedData = processPerplexityData(featuredItem);
+    const processedData = processTwitterData(featuredItem);
     
     return (
       <div className="relative">
@@ -232,7 +232,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
   return (
     <Card className={`${featured ? '' : 'glass-card'}`}>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Latest AI Content</CardTitle>
+        <CardTitle>Latest Twitter Content</CardTitle>
         <Button 
           variant="outline" 
           size="icon" 
@@ -253,7 +253,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
         ) : (
           <div className="space-y-6">
             {content.map((item) => {
-              const processedData = processPerplexityData(item);
+              const processedData = processTwitterData(item);
               
               return (
                 <div key={item.id} className="border rounded-lg p-4">
