@@ -30,6 +30,27 @@ export type Database = {
         }
         Relationships: []
       }
+      newsletters: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          newsletter_date: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          newsletter_date?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          newsletter_date?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
