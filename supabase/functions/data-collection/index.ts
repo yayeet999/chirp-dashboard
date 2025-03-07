@@ -1,4 +1,3 @@
-
 // Data Collection Service
 // This edge function collects AI-related content from Twitter API
 
@@ -167,21 +166,23 @@ async function fetchFromTwitter(bearerToken: string): Promise<string> {
   // Combined array for all tweets
   let allTweets: string[] = [];
   
-  // Function to fetch tweets from a single user ID, excluding retweets and replies
+  // Function to fetch tweets from a single user ID, excluding retweets and replies, with minimum 50 likes
   async function fetchTweetsFromUser(userId: number): Promise<void> {
     try {
       const response = await axiod.get(`${API_BASE_URL}/users/${userId}/tweets`, {
         headers: { Authorization: `Bearer ${bearerToken}` },
         params: {
           start_time: twentyFourHoursAgo,
-          'tweet.fields': 'created_at',
+          'tweet.fields': 'created_at,public_metrics', // Include public_metrics for like count
           max_results: 100,
-          exclude: 'retweets,replies',  // Exclude both retweets and replies
+          exclude: 'retweets,replies', // Exclude both retweets and replies
         },
       });
   
       const tweets = response.data.data || [];
-      tweets.forEach((tweet: any) => allTweets.push(`[User ${userId}] ${tweet.text}`));
+      // Filter tweets to include only those with 50 or more likes
+      const filteredTweets = tweets.filter((tweet: any) => tweet.public_metrics.like_count >= 50);
+      filteredTweets.forEach((tweet: any) => allTweets.push(`[User ${userId}] ${tweet.text} (Likes: ${tweet.public_metrics.like_count})`));
     } catch (error) {
       console.error(`Error fetching tweets for user ${userId}:`, error.message);
     }
