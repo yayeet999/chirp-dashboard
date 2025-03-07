@@ -50,7 +50,6 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
         throw error;
       }
       
-      console.log("Fetched content:", data);
       setContent(data || []);
     } catch (error) {
       console.error("Error fetching collected content:", error);
@@ -103,7 +102,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     }
   };
 
-  // Process twitter_data for display
+  // Process twitter_data for display - now handling as text
   const processTwitterData = (item: CollectedContentItem): ProcessedContent => {
     if (!item.twitter_data) {
       return {
@@ -115,32 +114,18 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     }
 
     try {
-      // Handle twitter_data as a string
+      // Since twitter_data is now a string, we need to handle it accordingly
       const content = item.twitter_data;
       
-      // Extract topics from content
-      const topicsRegex = /\[(Keyword: [^\]]+|User \d+)\]/g;
-      const topicMatches = content.match(topicsRegex) || [];
-      const topics = Array.from(new Set(
-        topicMatches.map(match => 
-          match.replace(/\[Keyword: |\[User \d+\]/g, '').trim()
-        )
-      )).slice(0, 5);
-      
-      // If no topics were found, use some default AI-related topics
-      if (topics.length === 0) {
-        topics.push('AI', 'Twitter');
-      }
-      
-      // Use a simple heuristic for relevance score based on content length
-      const relevance_score = Math.min(Math.floor(content.length / 100), 100);
+      // Default topics and relevance score
+      const topics = ['AI', 'Twitter'];
+      const relevance_score = 80;
       
       // Extract the first paragraph or sentence as title
-      const firstLine = content.split('\n')[0] || '';
-      const title = firstLine.substring(0, 100) || "Twitter Data Update";
+      const title = content.split('\n')[0].substring(0, 100) || "Twitter Data Update";
       
       // Use the rest as summary
-      const summary = content.substring(0).trim() || content;
+      const summary = content.substring(title.length).trim() || content;
       
       return {
         title,

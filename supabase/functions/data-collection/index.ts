@@ -51,12 +51,17 @@ Deno.serve(async (req) => {
     // Collect data from Twitter API
     const twitterContent = await fetchFromTwitter(twitterBearerToken);
     
-    console.log("Twitter content collected, length:", twitterContent.length);
+    // Process and standardize the collected data
+    // Store raw text content in the twitter_data field
+    const processedContent = {
+      twitter_data: twitterContent,
+      created_at: new Date().toISOString()
+    };
     
     // Store collected data in Supabase
     const { data, error } = await supabase
       .from('collected_content')
-      .insert([{ twitter_data: twitterContent }]);
+      .insert([processedContent]);
       
     if (error) {
       console.error("Error storing data in Supabase:", error);
@@ -135,14 +140,28 @@ async function fetchFromTwitter(bearerToken: string): Promise<string> {
   // Calculate time 24 hours ago
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   
-  // List of user IDs to fetch tweets from (smaller set to debug)
+  // List of 25 user IDs
   const userIds = [
-    1353836358901501952, 4398626122, 1963466798, 3448284313, 6681172
+      1353836358901501952, 1599587232175849472, 1605, 4398626122, 1720665183188922368,
+      1963466798, 1618975370488999936, 1573399256836309009, 1275333333724000257, 3448284313,
+      6681172, 361044311, 1743487864934162432, 1584941134203289601, 1763012993682456576,
+      2786431437, 33836629, 1405031034, 23113993, 1714580962569588736,
+      1314686042, 717930546391687170, 338443084, 346640777, 889050642903293953
   ];
   
-  // List of keywords/phrases (smaller set to debug)
+  // List of 60 keywords/phrases
   const keywords = [
-    'LLM', 'ChatGPT', 'AI', 'OpenAI', 'Mistral AI', 'Claude', 'Gemini'
+      'LLM', 'Prompt Engineering', 'DeepSeek', 'OpenAI', 'ChatGPT', 'GPT-4o', 'GPT-4.5', 'AGI',
+      'Mistral', 'Claude 3.5', 'Claude 3.7 sonnet', 'Claude Opus', 'Anthropic', 'Grok 3', 'Llama 3',
+      'Gemini Pro', 'Gemini Flash', 'Gemini Reasoning', 'Qwen', 'Alibaba AI', 'Meta AI', 'xAI Musk',
+      'Hugging Face AI', 'DeepMind', 'Microsoft Phi', 'NVIDIA GPU', 'NVIDIA H100', 'generative AI',
+      'reinforcement learning', 'transformer models', 'vector databases pinecone', 'fine-tuning LLMs',
+      'retrieval augmented generation', 'RAG AI', 'chain of thought', 'DALL-E', 'MidJourney',
+      'Stable Diffusion', 'Openai Sora', 'Runway Gen', 'perplexity ai', 'Elevenlabs ai',
+      'GitHub copilot', 'langchain ai', 'lora fine tuning', 'AI ethics', 'EU AI Act', 'quantum computing',
+      'vector database', 'multi modal ai', 'fine tuning ai', 'long form context', 'Sam Altman',
+      'Microsoft AI', 'Google AI', 'Amazon AI', 'Facebook AI', 'Mixture of Experts', 'zero-shot learning',
+      'few-shot learning', 'AI alignment', 'ai regulation'
   ];
   
   // Combined array for all tweets
@@ -151,79 +170,55 @@ async function fetchFromTwitter(bearerToken: string): Promise<string> {
   // Function to fetch tweets from a single user ID, excluding retweets and replies
   async function fetchTweetsFromUser(userId: number): Promise<void> {
     try {
-      console.log(`Fetching tweets for user ${userId}...`);
       const response = await axiod.get(`${API_BASE_URL}/users/${userId}/tweets`, {
         headers: { Authorization: `Bearer ${bearerToken}` },
         params: {
           start_time: twentyFourHoursAgo,
           'tweet.fields': 'created_at',
-          max_results: 10, // reduced for debugging
-          exclude: 'retweets,replies',
+          max_results: 100,
+          exclude: 'retweets,replies',  // Exclude both retweets and replies
         },
       });
-      
-      if (response.data && response.data.data) {
-        const tweets = response.data.data || [];
-        console.log(`Found ${tweets.length} tweets for user ${userId}`);
-        tweets.forEach((tweet: any) => allTweets.push(`[User ${userId}] ${tweet.text}`));
-      } else {
-        console.log(`No tweets found for user ${userId}`);
-      }
+  
+      const tweets = response.data.data || [];
+      tweets.forEach((tweet: any) => allTweets.push(`[User ${userId}] ${tweet.text}`));
     } catch (error) {
       console.error(`Error fetching tweets for user ${userId}:`, error.message);
-      // Don't throw, just log and continue with other users
     }
   }
   
-  // Function to fetch tweets by keywords
-  async function fetchTweetsByKeywords(keyword: string): Promise<void> {
+  // Function to fetch tweets by keywords with 50+ likes, excluding retweets
+  async function fetchTweetsByKeywords(keywordBatch: string[]): Promise<void> {
+    const query = `${keywordBatch.join(' OR ')} min_faves:50 -is:retweet`;
     try {
-      console.log(`Searching tweets for keyword "${keyword}"...`);
-      const query = `${keyword} -is:retweet min_faves:10`;
-      
       const response = await axiod.get(`${API_BASE_URL}/tweets/search/recent`, {
         headers: { Authorization: `Bearer ${bearerToken}` },
         params: {
           query: query,
           start_time: twentyFourHoursAgo,
           'tweet.fields': 'public_metrics',
-          max_results: 10, // reduced for debugging
+          max_results: 100,
         },
       });
-      
-      if (response.data && response.data.data) {
-        const tweets = response.data.data || [];
-        console.log(`Found ${tweets.length} tweets for keyword "${keyword}"`);
-        tweets.forEach((tweet: any) => {
-          const likeCount = tweet.public_metrics?.like_count || 0;
-          allTweets.push(`[Keyword: ${keyword}] ${tweet.text} (Likes: ${likeCount})`);
-        });
-      } else {
-        console.log(`No tweets found for keyword "${keyword}"`);
-      }
+  
+      const tweets = response.data.data || [];
+      tweets.forEach((tweet: any) => allTweets.push(`[Keyword Search] ${tweet.text} (Likes: ${tweet.public_metrics?.like_count})`));
     } catch (error) {
-      console.error(`Error searching keyword "${keyword}":`, error.message);
-      // Don't throw, just log and continue with other keywords
+      console.error(`Error searching keywords:`, error.message);
     }
   }
   
   try {
-    // Step 1: Fetch tweets from user IDs one by one
-    console.log(`Fetching tweets from ${userIds.length} users...`);
+    // Step 1: Fetch tweets from user IDs
     for (const userId of userIds) {
       await fetchTweetsFromUser(userId);
     }
     
-    // Step 2: Fetch tweets by keywords one by one
-    console.log(`Searching tweets for ${keywords.length} keywords...`);
-    for (const keyword of keywords) {
-      await fetchTweetsByKeywords(keyword);
-    }
-    
-    console.log(`Total tweets collected: ${allTweets.length}`);
-    
-    if (allTweets.length === 0) {
-      return "No tweets found in the last 24 hours matching the criteria.";
+    // Step 2: Fetch tweets by keywords (split into batches due to 512-char limit)
+    const batchSize = 15; // Adjust based on query length; 15 keeps it under 512 chars
+    for (let i = 0; i < keywords.length; i += batchSize) {
+      const keywordBatch = keywords.slice(i, i + batchSize);
+      await fetchTweetsByKeywords(keywordBatch);
     }
     
     // Format the tweets into a single string
