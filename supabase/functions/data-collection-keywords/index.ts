@@ -122,7 +122,7 @@ async function fetchFromPerplexity(apiKey: string): Promise<string> {
   Include extensive examples, thorough descriptions of what makes each update significant, the potential impact on the AI field, and any notable details about how these developments came about. I want a lengthy and comprehensive output with as much information as possible.`;
 
   const requestBody = {
-    model: "sonar-pro",
+    model: "sonar",
     messages: [
       {
         role: "user",
