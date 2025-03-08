@@ -162,11 +162,12 @@ async function processWithGemini(inputData: string, apiKey: string): Promise<str
           {
             parts: [
               {
-                text: `You are an AI assistant specialized in processing and summarizing newsletter data.
-                
-Please analyze and process the following data from AI-related newsletters.
-Organize the information chronologically and extract the most relevant insights about new AI models, technologies, and trends.
-Focus on factual information and key developments in the AI field.
+                text: `You are to perform a very simple task. You are to chronologically order a list of text content you'll recieve. 
+You are to remove all of the following phrase IF present: 
+- '### Tavus’s AI Avatars'
+
+Do NOT alter any of the text besides this. Do not in any way attempt to change the content besides the remove of the phrase '### Tavus’s AI Avatars' if it is present.
+Simply chronologically order the text content you recieve and ensure all of the text content is completely unaltered
 
 ${inputData}`
               }
