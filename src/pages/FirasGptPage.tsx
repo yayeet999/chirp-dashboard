@@ -1,11 +1,12 @@
 
 import React from "react";
-import { Bot, Users, MessageCircle, FileText, User, Hash, BookOpen, ArrowUpRight } from "lucide-react";
+import { Bot, Users, MessageCircle, FileText, User, Hash, BookOpen, ArrowUpRight, Database } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/dashboard/StatusBadge";
 import CollectedContent from "@/components/dashboard/CollectedContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import VectorInput from "@/components/dashboard/VectorInput";
 
 const MetricCard = ({ title, value, icon, trend }: { 
   title: string; 
@@ -72,7 +73,7 @@ const FirasGptPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Data Source Metrics - Only User Timeline Data */}
+      {/* Data Source Metrics - User Timeline Data */}
       <Card className="glass-card">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -95,6 +96,9 @@ const FirasGptPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Vector Database Input Section */}
+      <VectorInput />
     </div>
   );
 };
