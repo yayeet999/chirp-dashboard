@@ -67,7 +67,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         // Include the index name in the request body
-        index: "firasgpt",
+        index: "firasgptknowledge",
         id,
         vector: embedding,
         metadata: {
