@@ -155,8 +155,8 @@ async function processWithGemini(inputData: string, apiKey: string): Promise<str
               {
                 text: `You are tasked with a simple task of taking the following data from twitter and perplexity and 'cleaning' them. 
                 
-Regarding the Twitter data - Remove the user id numbers, then simply list the individual tweets in chronological order by time/day ensuring that you do NOT alter the individual tweets at all. Number the list of the chronologically ordered tweets.
-Regarding the Perplexity data - Remove all the thinking text (in between '<think>....</think>'), and then analyze and remove text mentioning phrases like (no llms and/or announcements were found) and then simply list and chronologically order the answers by time/day.
+Regarding the Twitter data - Remove the user id numbers, then simply list the individual tweets in chronological order by time/day ensuring that you do NOT alter the individual tweets at all
+Regarding the Perplexity data - Remove all the thinking text (in between '<think>....</think>'), and then also chronologically order by time/day
 FINAL INSTRUCTIONS - Perform only the instructions assigned to you. Do not include extra side comments or statements. 
 
 ${inputData}`
