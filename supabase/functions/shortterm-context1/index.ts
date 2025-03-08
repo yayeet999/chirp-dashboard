@@ -1,6 +1,6 @@
 
 // Short-term Context 1 Processor
-// Processes recent Twitter and Perplexity data using Google Gemini API
+// Processes recent Twitter data using Google Gemini API
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     // Fetch the 12 most recent rows from collected_content
     const { data: recentContent, error: fetchError } = await supabase
       .from('collected_content')
-      .select('twitter_data, perplexity_data, created_at')
+      .select('twitter_data, created_at')
       .order('created_at', { ascending: false })
       .limit(12);
       
@@ -78,25 +78,10 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Process Perplexity data - remove thinking text
-    let processedPerplexityData = "";
-    for (const content of recentContent) {
-      if (content.perplexity_data) {
-        // Remove text between <think> and </think> tags if they exist
-        const cleanedPerplexityData = content.perplexity_data.replace(/<think>[\s\S]*?<\/think>/g, '');
-        if (cleanedPerplexityData.trim()) {
-          processedPerplexityData += cleanedPerplexityData + '\n\n';
-        }
-      }
-    }
-    
     // Combine all data chronologically (it's already sorted by date)
     const combinedData = `
 TWITTER DATA:
 ${processedTwitterData}
-
-PERPLEXITY DATA:
-${processedPerplexityData}
 `;
     
     // Process the combined data with Google Gemini API
@@ -153,10 +138,9 @@ async function processWithGemini(inputData: string, apiKey: string): Promise<str
           {
             parts: [
               {
-                text: `You are tasked with a simple task of taking the following data from twitter and perplexity and 'cleaning' them. 
+                text: `You are tasked with a simple task of taking the following data from twitter and 'cleaning' them. 
                 
 Regarding the Twitter data - Remove the user id numbers, then simply list the individual tweets in chronological order by time/day ensuring that you do NOT alter the individual tweets at all
-Regarding the Perplexity data - Remove all the thinking text (in between '<think>....</think>'), and then also chronologically order by time/day
 FINAL INSTRUCTIONS - Perform only the instructions assigned to you. Do not include extra side comments or statements. 
 
 ${inputData}`

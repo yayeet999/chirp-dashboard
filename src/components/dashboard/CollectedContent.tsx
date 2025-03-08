@@ -4,15 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator"; 
-import { RefreshCw, User, Hash } from "lucide-react";
+import { RefreshCw, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
 interface CollectedContentItem {
   id: string;
   twitter_data: string;
-  perplexity_data: string;
   created_at: string;
 }
 
@@ -35,7 +33,6 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
 }) => {
   const [content, setContent] = useState<CollectedContentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("users");
   const { toast } = useToast();
 
   const fetchCollectedContent = async () => {
@@ -87,7 +84,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
       
       toast({
         title: "Success",
-        description: "Data collection has been triggered for both user timelines and Perplexity search",
+        description: "Data collection has been triggered for user timelines",
       });
       
       // Wait a moment and then refresh the content
@@ -156,71 +153,8 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     }
   };
   
-  // Process perplexity_data for display
-  const processPerplexityData = (text: string | null): ProcessedContent => {
-    if (!text) {
-      return {
-        title: "No Perplexity Data Available",
-        summary: "No data available",
-        topics: [],
-        relevance_score: 0
-      };
-    }
-
-    try {
-      // Extract topics using some simple heuristics
-      const topicRegex = /\b(AI|LLM|GPT|Claude|Mistral|Gemini|Anthropic|OpenAI|DeepMind|Llama|Grok|AGI)\b/gi;
-      const matchedTopics = [...new Set(text.match(topicRegex) || [])];
-      const topics = matchedTopics.length > 0 ? matchedTopics : ['AI', 'Perplexity'];
-      
-      // Calculate a mock relevance score based on content length and keyword presence
-      const relevanceWords = ['AI', 'GPT', 'LLM', 'model', 'intelligence', 'neural', 'transformer'];
-      const wordCount = relevanceWords.reduce((count, word) => {
-        const regex = new RegExp(word, 'gi');
-        const matches = text.match(regex) || [];
-        return count + matches.length;
-      }, 0);
-      
-      const relevance_score = Math.min(100, Math.max(10, wordCount * 10));
-      
-      // Extract the prompt line as title if available
-      const lines = text.split('\n').filter(line => line.trim());
-      let title = "Perplexity AI Insights";
-      let startSummaryIndex = 0;
-      
-      // Look for the prompt line
-      if (lines[0] && lines[0].includes('[Perplexity Sonar]')) {
-        title = lines[0].substring(0, 100);
-        startSummaryIndex = 1;
-        
-        // Skip the blank line after the prompt if it exists
-        if (lines[1] && lines[1].trim() === '') {
-          startSummaryIndex = 2;
-        }
-      }
-      
-      // Use the rest as summary
-      const summary = lines.slice(startSummaryIndex).join('\n') || text;
-      
-      return {
-        title,
-        summary,
-        topics,
-        relevance_score
-      };
-    } catch (e) {
-      console.error("Error processing Perplexity data:", e);
-      return {
-        title: "Error Processing Data",
-        summary: "There was an error processing this content",
-        topics: ['Error'],
-        relevance_score: 0
-      };
-    }
-  };
-  
   if (featured && content.length > 0) {
-    // Featured view for single item with tabs
+    // Featured view for single item
     const featuredItem = content[0];
     
     return (
@@ -231,26 +165,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
           </div>
         ) : (
           <div>
-            <Tabs defaultValue="users" value={activeTab} onValueChange={setActiveTab} className="mb-4">
-              <TabsList className="grid grid-cols-2 w-full">
-                <TabsTrigger value="users" className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  User Timelines
-                </TabsTrigger>
-                <TabsTrigger value="perplexity" className="flex items-center gap-2">
-                  <Hash className="h-4 w-4" />
-                  Perplexity AI
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="users" className="mt-4">
-                {renderFeaturedContent(featuredItem.twitter_data, "twitter")}
-              </TabsContent>
-              
-              <TabsContent value="perplexity" className="mt-4">
-                {renderFeaturedContent(featuredItem.perplexity_data, "perplexity")}
-              </TabsContent>
-            </Tabs>
+            {renderFeaturedContent(featuredItem.twitter_data, "twitter")}
 
             <div className="text-sm text-muted-foreground mb-3 flex items-center justify-between">
               <span>Updated {new Date(featuredItem.created_at).toLocaleString()}</span>
@@ -277,10 +192,8 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
   }
   
   // Helper function to render featured content
-  function renderFeaturedContent(text: string | null, type: "twitter" | "perplexity") {
-    const processedData = type === "twitter" 
-      ? processTwitterData(text)
-      : processPerplexityData(text);
+  function renderFeaturedContent(text: string | null, type: "twitter") {
+    const processedData = processTwitterData(text);
     
     return (
       <div>
@@ -328,26 +241,14 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
           </div>
         ) : (
           <div>
-            <Tabs defaultValue="users" className="w-full">
-              <TabsList className="grid grid-cols-2 w-full mb-4">
-                <TabsTrigger value="users" className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  User Timelines
-                </TabsTrigger>
-                <TabsTrigger value="perplexity" className="flex items-center gap-2">
-                  <Hash className="h-4 w-4" />
-                  Perplexity AI
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="users" className="space-y-6">
-                {content.map((item) => renderContentItem(item, 'twitter_data', 'twitter'))}
-              </TabsContent>
-              
-              <TabsContent value="perplexity" className="space-y-6">
-                {content.map((item) => renderContentItem(item, 'perplexity_data', 'perplexity'))}
-              </TabsContent>
-            </Tabs>
+            <div className="flex items-center gap-2 mb-4">
+              <User className="h-4 w-4" />
+              <span className="font-medium">User Timelines</span>
+            </div>
+            
+            <div className="space-y-6">
+              {content.map((item) => renderContentItem(item, 'twitter_data', 'twitter'))}
+            </div>
             
             {isLoading && (
               <div className="flex justify-center py-8">
@@ -369,18 +270,16 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
   // Helper function to render a content item
   function renderContentItem(
     item: CollectedContentItem, 
-    field: 'twitter_data' | 'perplexity_data',
-    type: 'twitter' | 'perplexity'
+    field: 'twitter_data',
+    type: 'twitter'
   ) {
     const text = item[field] || null;
-    const processedData = type === "twitter" 
-      ? processTwitterData(text)
-      : processPerplexityData(text);
+    const processedData = processTwitterData(text);
     
     if (!text) {
       return (
         <div key={`${item.id}-${field}`} className="border rounded-lg p-4 text-center text-muted-foreground">
-          No {type === 'twitter' ? 'user timeline' : 'Perplexity AI'} data available
+          No user timeline data available
         </div>
       );
     }

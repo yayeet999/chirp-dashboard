@@ -1,6 +1,6 @@
 
 // Data Collection Scheduler
-// This edge function is triggered by a cron job to schedule data collection for both user IDs and keywords
+// This edge function is triggered by a cron job to schedule data collection for user IDs
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -25,31 +25,19 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
   
   try {
-    console.log("Scheduler triggered, calling both data collection functions in parallel...");
+    console.log("Scheduler triggered, calling data collection function...");
     
-    // Call both data collection functions in parallel
-    const [usersResponse, keywordsResponse] = await Promise.all([
-      supabase.functions.invoke('data-collection-users', {
-        method: 'POST',
-        body: {}
-      }),
-      supabase.functions.invoke('data-collection-keywords', {
-        method: 'POST',
-        body: {}
-      })
-    ]);
+    // Call the data collection function for users
+    const usersResponse = await supabase.functions.invoke('data-collection-users', {
+      method: 'POST',
+      body: {}
+    });
     
-    // Check for errors in either function call
+    // Check for errors in the function call
     if (usersResponse.error) {
       console.error("Error calling user data collection function:", usersResponse.error);
     } else {
       console.log("User data collection function called successfully:", usersResponse.data);
-    }
-    
-    if (keywordsResponse.error) {
-      console.error("Error calling keyword data collection function:", keywordsResponse.error);
-    } else {
-      console.log("Keyword data collection function called successfully:", keywordsResponse.data);
     }
     
     // Increment the Redis counter for context updates
@@ -129,23 +117,22 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Return success if at least one function completed successfully
-    if (!usersResponse.error || !keywordsResponse.error) {
+    // Return success if users function completed successfully
+    if (!usersResponse.error) {
       return new Response(
         JSON.stringify({ 
           success: true, 
           message: "Data collection scheduled",
           users: usersResponse.error ? "failed" : "success",
-          keywords: keywordsResponse.error ? "failed" : "success",
           cycle_count: dataCollectionCounter,
           context_update_triggered: triggerContextUpdate
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     } else {
-      // Both functions failed
+      // Function failed
       return new Response(
-        JSON.stringify({ error: "Both data collection functions failed" }),
+        JSON.stringify({ error: "Data collection function failed" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }
