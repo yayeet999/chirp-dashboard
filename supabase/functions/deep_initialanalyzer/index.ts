@@ -158,7 +158,7 @@ Deno.serve(async (req) => {
           content: contextSection
         }
       ],
-      model: "deepseek-r1",
+      model: "deepseek-reasoner",
       temperature: 0.7,
       max_tokens: 2500
     };
