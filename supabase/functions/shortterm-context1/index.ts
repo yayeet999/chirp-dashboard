@@ -140,7 +140,7 @@ async function processWithGemini(inputData: string, apiKey: string): Promise<str
               {
                 text: `You are tasked with a simple task of taking the following data from twitter and 'cleaning' them. Note: Each tweet has its own individual (likes).
                 
-Regarding the Twitter data - Remove the user id numbers, then simply list the individual tweets in chronological order by time/day ensuring that you do NOT alter the individual tweets at all.
+Regarding the Twitter data - Remove the user id numbers, then simply list the individual tweets in chronological order by time/day. If two individual tweets are EXACT duplicates, remove one. And then ensure that you do NOT alter the individual tweets at all besides this.
 Then you are to perform a sentimaent analysis of all of the tweets, analyze common key words/phrases/sentiments/discussions.
 Under the chronological list of tweets you are to list your analysis:
    -List the top 5 most commonly repeated keywords/phrases
