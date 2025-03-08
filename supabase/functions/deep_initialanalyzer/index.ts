@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
     console.log("Context section prepared:", contextSection);
     
     // Call DeepSeek API
-    const deepseekAPIEndpoint = "https://api.deepseek.com/v1/completions";
+    const deepseekAPIEndpoint = "https://api.deepseek.com/v1/chat/completions";
     const deepseekAPIKey = Deno.env.get("DEEPSEEK_API_KEY");
     
     if (!deepseekAPIKey) {
