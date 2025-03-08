@@ -56,15 +56,18 @@ serve(async (req) => {
     // Generate unique ID
     const id = crypto.randomUUID();
     
-    // Insert into Upstash Vector
+    // Insert into Upstash Vector - CORRECTED endpoint
     console.log("Inserting vector with ID:", id);
-    const vectorResponse = await fetch(`${upstashVectorUrl}/firasgpt/upsert`, {
+    // Use the base URL without appending the index name in the URL
+    const vectorResponse = await fetch(`${upstashVectorUrl}/upsert`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${upstashVectorToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        // Include the index name in the request body
+        index: "firasgpt",
         id,
         vector: embedding,
         metadata: {
