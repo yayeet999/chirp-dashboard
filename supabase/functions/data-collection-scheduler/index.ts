@@ -42,7 +42,9 @@ Deno.serve(async (req) => {
     
     // Increment the Redis counter for context updates
     let dataCollectionCounter = 1;
+    let mediumTermCounter = 0;
     let triggerContextUpdate = false;
+    let triggerMediumTermUpdate = false;
     
     try {
       if (upstashRedisUrl && upstashRedisToken) {
@@ -78,6 +80,53 @@ Deno.serve(async (req) => {
           }
           
           console.log("Data collection counter reset to 0");
+          
+          // Increment medium term counter when data collection counter resets
+          const mediumTermIncrementResponse = await fetch(`${upstashRedisUrl}/incr/medium_term_counter`, {
+            headers: {
+              Authorization: `Bearer ${upstashRedisToken}`
+            }
+          });
+          
+          if (!mediumTermIncrementResponse.ok) {
+            throw new Error(`Medium term counter increment failed: ${mediumTermIncrementResponse.statusText}`);
+          }
+          
+          const mediumTermResult = await mediumTermIncrementResponse.json();
+          mediumTermCounter = mediumTermResult.result;
+          console.log(`Medium term counter incremented to: ${mediumTermCounter}`);
+          
+          // Check if we need to trigger medium term context update (after 3 cycles)
+          if (mediumTermCounter >= 3) {
+            console.log("Triggering medium term context update after 3 cycles...");
+            triggerMediumTermUpdate = true;
+            
+            // Reset medium term counter
+            const resetMediumTermResponse = await fetch(`${upstashRedisUrl}/set/medium_term_counter/0`, {
+              headers: {
+                Authorization: `Bearer ${upstashRedisToken}`
+              }
+            });
+            
+            if (!resetMediumTermResponse.ok) {
+              throw new Error(`Medium term counter reset failed: ${resetMediumTermResponse.statusText}`);
+            }
+            
+            console.log("Medium term counter reset to 0");
+          }
+        } else {
+          // Get current medium term counter value
+          const getMediumTermResponse = await fetch(`${upstashRedisUrl}/get/medium_term_counter`, {
+            headers: {
+              Authorization: `Bearer ${upstashRedisToken}`
+            }
+          });
+          
+          if (getMediumTermResponse.ok) {
+            const getMediumTermResult = await getMediumTermResponse.json();
+            mediumTermCounter = getMediumTermResult.result || 0;
+            console.log(`Current medium term counter: ${mediumTermCounter}`);
+          }
         }
       } else {
         console.log("Upstash Redis configuration not found, skipping counter management");
@@ -133,6 +182,26 @@ Deno.serve(async (req) => {
       }
     }
     
+    // If we've reached 3 medium term cycles, trigger the medium term context function
+    if (triggerMediumTermUpdate) {
+      console.log("Medium term trigger condition met, calling medium term context processing function...");
+      
+      // Wait to ensure short-term context processing is complete
+      await new Promise(resolve => setTimeout(resolve, 15000));
+      
+      // Call the medium term context function
+      const mediumTermResponse = await supabase.functions.invoke('mediumterm-context', {
+        method: 'POST',
+        body: {}
+      });
+      
+      if (mediumTermResponse.error) {
+        console.error("Error calling mediumterm-context function:", mediumTermResponse.error);
+      } else {
+        console.log("mediumterm-context function called successfully:", mediumTermResponse.data);
+      }
+    }
+    
     // Return success if users function completed successfully
     if (!usersResponse.error) {
       return new Response(
@@ -141,7 +210,9 @@ Deno.serve(async (req) => {
           message: "Data collection scheduled",
           users: usersResponse.error ? "failed" : "success",
           cycle_count: dataCollectionCounter,
-          context_update_triggered: triggerContextUpdate
+          medium_term_count: mediumTermCounter,
+          context_update_triggered: triggerContextUpdate,
+          medium_term_update_triggered: triggerMediumTermUpdate
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
