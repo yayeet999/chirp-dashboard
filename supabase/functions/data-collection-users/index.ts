@@ -134,9 +134,6 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
   // Base URL for Twitter API v2
   const API_BASE_URL = 'https://api.twitter.com/2';
   
-  // Calculate time 5 hours ago (updated from 48 hours to 5 hours)
-  const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
-  
   // List of user IDs (original list + newly added IDs + the requested ID 1314686042)
   const userIds = [
       1353836358901501952, 1599587232175849472, 1605, 4398626122, 1720665183188922368,
@@ -149,17 +146,16 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
   // Combined array for all tweets
   let allTweets: string[] = [];
   
-  // Function to fetch tweets from a single user ID, excluding retweets and replies
+  // Function to fetch tweets from a single user ID, now including retweets and replies
   async function fetchTweetsFromUser(userId: number): Promise<string[]> {
     try {
       console.log(`Fetching tweets for user ${userId}...`);
       const response = await axiod.get(`${API_BASE_URL}/users/${userId}/tweets`, {
         headers: { Authorization: `Bearer ${bearerToken}` },
         params: {
-          start_time: fiveHoursAgo,
           'tweet.fields': 'created_at,public_metrics',
           max_results: 20,
-          exclude: 'retweets,replies',  // Exclude both retweets and replies
+          // Removed start_time parameter and exclude parameter to include all tweets
         },
       });
   
