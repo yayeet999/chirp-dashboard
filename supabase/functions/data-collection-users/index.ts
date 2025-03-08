@@ -154,7 +154,7 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
         headers: { Authorization: `Bearer ${bearerToken}` },
         params: {
           'tweet.fields': 'created_at,public_metrics',
-          max_results: 20,
+          max_results: 5,
           // Removed start_time parameter and exclude parameter to include all tweets
         },
       });
