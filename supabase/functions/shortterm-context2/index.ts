@@ -166,8 +166,10 @@ async function processWithGemini(inputData: string, apiKey: string): Promise<str
 You are to remove all of the following phrase IF present: 
 - '### Tavus’s AI Avatars'
 
-Do NOT alter any of the text besides this. Do not in any way attempt to change the content besides the remove of the phrase '### Tavus’s AI Avatars' if it is present.
-Simply chronologically order the text content you recieve and ensure all of the text content is completely unaltered
+Also, For each section in the text, condense the 'Original Text' part WITHOUT omitting any data, details, concepts or information. Keep headings, summaries, and key points unchanged.
+And ensure the text is properly chronologically ordered
+
+
 
 ${inputData}`
               }
