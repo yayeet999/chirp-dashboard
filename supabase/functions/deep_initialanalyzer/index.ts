@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
       ],
       model: "deepseek-reasoner",
       temperature: 0.7,
-      max_tokens: 2500
+      max_tokens: 4000
     };
     
     console.log("Calling DeepSeek API...");
