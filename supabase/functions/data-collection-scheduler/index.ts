@@ -115,6 +115,22 @@ Deno.serve(async (req) => {
       } else {
         console.log("shortterm-context2 function called successfully:", context2Response.data);
       }
+      
+      // Wait a short time to ensure the unrefined data has been updated
+      // before triggering the refiner scheduler
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      // Call the refiner scheduler function
+      const refinerResponse = await supabase.functions.invoke('shortterm-context-refiner-scheduler', {
+        method: 'POST',
+        body: {}
+      });
+      
+      if (refinerResponse.error) {
+        console.error("Error calling refiner scheduler function:", refinerResponse.error);
+      } else {
+        console.log("Refiner scheduler function called successfully:", refinerResponse.data);
+      }
     }
     
     // Return success if users function completed successfully
