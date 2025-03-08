@@ -18,6 +18,8 @@ Deno.serve(async (req) => {
   const environmentVariables = Deno.env.toObject();
   const supabaseUrl = environmentVariables.SUPABASE_URL || '';
   const supabaseAnonKey = environmentVariables.SUPABASE_ANON_KEY || '';
+  const upstashRedisUrl = environmentVariables.UPSTASH_REDIS_REST_URL || '';
+  const upstashRedisToken = environmentVariables.UPSTASH_REDIS_REST_TOKEN || '';
   
   // Initialize Supabase client
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -50,6 +52,83 @@ Deno.serve(async (req) => {
       console.log("Keyword data collection function called successfully:", keywordsResponse.data);
     }
     
+    // Increment the Redis counter for context updates
+    let dataCollectionCounter = 1;
+    let triggerContextUpdate = false;
+    
+    try {
+      if (upstashRedisUrl && upstashRedisToken) {
+        // Increment counter using Upstash Redis REST API
+        const incrementResponse = await fetch(`${upstashRedisUrl}/incr/data_collection_counter`, {
+          headers: {
+            Authorization: `Bearer ${upstashRedisToken}`
+          }
+        });
+        
+        if (!incrementResponse.ok) {
+          throw new Error(`Redis increment failed: ${incrementResponse.statusText}`);
+        }
+        
+        const incrementResult = await incrementResponse.json();
+        dataCollectionCounter = incrementResult.result;
+        console.log(`Data collection counter incremented to: ${dataCollectionCounter}`);
+        
+        // Check if we need to update context (after 12 cycles as specified)
+        if (dataCollectionCounter >= 12) {
+          console.log("Triggering context update after 12 cycles...");
+          triggerContextUpdate = true;
+          
+          // Reset counter in Redis
+          const resetResponse = await fetch(`${upstashRedisUrl}/set/data_collection_counter/0`, {
+            headers: {
+              Authorization: `Bearer ${upstashRedisToken}`
+            }
+          });
+          
+          if (!resetResponse.ok) {
+            throw new Error(`Redis reset failed: ${resetResponse.statusText}`);
+          }
+          
+          console.log("Data collection counter reset to 0");
+        }
+      } else {
+        console.log("Upstash Redis configuration not found, skipping counter management");
+      }
+    } catch (redisError) {
+      console.error("Error managing Redis counter:", redisError);
+      // Continue execution - counter errors shouldn't stop the main flow
+    }
+    
+    // If we've reached 12 cycles, trigger the context update functions
+    if (triggerContextUpdate) {
+      console.log("Trigger condition met, calling context processing functions in parallel...");
+      
+      // Call both context processing functions in parallel
+      const [context1Response, context2Response] = await Promise.all([
+        supabase.functions.invoke('shortterm-context1', {
+          method: 'POST',
+          body: {}
+        }),
+        supabase.functions.invoke('shortterm-context2', {
+          method: 'POST',
+          body: {}
+        })
+      ]);
+      
+      // Check for errors in either function call
+      if (context1Response.error) {
+        console.error("Error calling shortterm-context1 function:", context1Response.error);
+      } else {
+        console.log("shortterm-context1 function called successfully:", context1Response.data);
+      }
+      
+      if (context2Response.error) {
+        console.error("Error calling shortterm-context2 function:", context2Response.error);
+      } else {
+        console.log("shortterm-context2 function called successfully:", context2Response.data);
+      }
+    }
+    
     // Return success if at least one function completed successfully
     if (!usersResponse.error || !keywordsResponse.error) {
       return new Response(
@@ -57,7 +136,9 @@ Deno.serve(async (req) => {
           success: true, 
           message: "Data collection scheduled",
           users: usersResponse.error ? "failed" : "success",
-          keywords: keywordsResponse.error ? "failed" : "success"
+          keywords: keywordsResponse.error ? "failed" : "success",
+          cycle_count: dataCollectionCounter,
+          context_update_triggered: triggerContextUpdate
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );

@@ -75,6 +75,27 @@ export type Database = {
         }
         Relationships: []
       }
+      unrefined: {
+        Row: {
+          created_at: string
+          id: string
+          shortterm_context1_unrefined: string | null
+          shortterm_context2_unrefined: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          shortterm_context1_unrefined?: string | null
+          shortterm_context2_unrefined?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          shortterm_context1_unrefined?: string | null
+          shortterm_context2_unrefined?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
