@@ -1,12 +1,14 @@
 
 import React, { useState, useEffect } from "react";
-import { Bot, Users, MessageCircle, FileText, User, Hash, BookOpen, ArrowUpRight, Database, Clock } from "lucide-react";
+import { Bot, Users, MessageCircle, FileText, User, Hash, BookOpen, ArrowUpRight, Database, Clock, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/dashboard/StatusBadge";
 import CollectedContent from "@/components/dashboard/CollectedContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import VectorInput from "@/components/dashboard/VectorInput";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 const MetricCard = ({ title, value, icon, trend }: { 
   title: string; 
@@ -40,6 +42,9 @@ const MetricCard = ({ title, value, icon, trend }: {
 const FirasGptPage: React.FC = () => {
   const [currentGroup, setCurrentGroup] = useState<string>("");
   const [centralTime, setCentralTime] = useState<string>("");
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [analysisResult, setAnalysisResult] = useState<string>("");
+  const { toast } = useToast();
 
   useEffect(() => {
     const determineActiveGroup = () => {
@@ -79,6 +84,43 @@ const FirasGptPage: React.FC = () => {
     
     return () => clearInterval(interval);
   }, []);
+
+  const runDeepAnalysis = async () => {
+    setIsAnalyzing(true);
+    setAnalysisResult("");
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('deep_initialanalyzer');
+      
+      if (error) {
+        console.error("Error running deep analysis:", error);
+        toast({
+          title: "Analysis Failed",
+          description: error.message || "Failed to run deep analysis",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (data?.analysis) {
+        setAnalysisResult(data.analysis);
+        toast({
+          title: "Analysis Complete",
+          description: "Deep analysis completed successfully",
+          variant: "default"
+        });
+      }
+    } catch (error) {
+      console.error("Failed to run deep analysis:", error);
+      toast({
+        title: "Analysis Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -120,6 +162,41 @@ const FirasGptPage: React.FC = () => {
               <h3 className="text-sm font-medium mb-1">Active Collection</h3>
               <p className="text-lg font-bold">{currentGroup}</p>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tweet Analysis Tools */}
+      <Card className="glass-card border-primary/20">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Tweet Generation Tools
+            </CardTitle>
+            <CardDescription>
+              Tools for analyzing content and generating tweet ideas
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <Button 
+                onClick={runDeepAnalysis} 
+                disabled={isAnalyzing}
+                className="w-full md:w-auto"
+              >
+                {isAnalyzing ? "Analyzing..." : "Run Deep Analysis"} 
+              </Button>
+            </div>
+            
+            {analysisResult && (
+              <div className="mt-4 p-4 bg-secondary/10 rounded-lg">
+                <h3 className="text-sm font-medium mb-2">Analysis Result</h3>
+                <div className="whitespace-pre-wrap text-sm">{analysisResult}</div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
