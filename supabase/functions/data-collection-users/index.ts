@@ -200,10 +200,10 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
         allTweets = allTweets.concat(userTweets);
       });
       
-      // If not the last batch, add a small delay before processing the next batch
+      // If not the last batch, add a delay before processing the next batch (increased from 1 to 2 seconds)
       if (batchIndex < batches.length - 1) {
-        console.log(`Waiting 1 second before processing next batch...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log(`Waiting 2 seconds before processing next batch...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
     
