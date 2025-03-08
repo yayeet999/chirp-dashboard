@@ -177,7 +177,7 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
   // Combined array for all tweets
   let allTweets: string[] = [];
   
-  // Function to fetch tweets from a single user ID, now including retweets and replies
+  // Function to fetch tweets from a single user ID, excluding replies
   async function fetchTweetsFromUser(userId: number): Promise<string[]> {
     try {
       console.log(`Fetching tweets for user ${userId}...`);
@@ -185,8 +185,8 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
         headers: { Authorization: `Bearer ${bearerToken}` },
         params: {
           'tweet.fields': 'created_at,public_metrics',
-          max_results: 5,
-          // Removed start_time parameter and exclude parameter to include all tweets
+          'exclude': 'replies',  // Added this parameter to exclude replies
+          max_results: 5
         },
       });
   
@@ -247,3 +247,4 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
     throw new Error(`Failed to fetch Twitter user data: ${error.message}`);
   }
 }
+

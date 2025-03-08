@@ -126,7 +126,7 @@ const FirasGptPage: React.FC = () => {
               Latest AI Content
             </CardTitle>
             <CardDescription>
-              Collected data from Twitter API (User Timelines)
+              Collected data from Twitter API (User Timelines, excluding replies)
             </CardDescription>
           </div>
         </CardHeader>
