@@ -127,26 +127,33 @@ Deno.serve(async (req) => {
   }
 });
 
-// Function to fetch data from Twitter user timelines with parallel processing and group selection
+// Function to fetch data from Twitter user timelines with parallel processing and time-based group selection
 async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
   console.log("Fetching data from Twitter user timelines with time-based group selection...");
   
   // Base URL for Twitter API v2
   const API_BASE_URL = 'https://api.twitter.com/2';
   
-  // Split user IDs into two groups to handle Twitter API rate limits
-  // Group A - processed at 6am and 4pm CT
+  // Split user IDs into four groups to better handle Twitter API rate limits
+  // Group A - processed at 6am CT
   const groupA = [
     1353836358901501952, 1599587232175849472, 4398626122, 1720665183188922368,
-    1963466798, 1618975370488999936, 1573399256836309009, 1275333333724000257, 3448284313,
-    6681172, 361044311
+    1963466798, 1618975370488999936
   ];
   
-  // Group B - processed at 11am and 9pm CT
+  // Group B - processed at 11am CT
   const groupB = [
-    1743487864934162432, 1584941134203289601, 1763012993682456576,
-    284333988, 1884131461130825728, 18737039, 82331877, 1881168794, 1589007443853340672, 60642052,
-    1314686042
+    1573399256836309009, 1275333333724000257, 3448284313, 6681172, 361044311
+  ];
+  
+  // Group C - processed at 4pm CT
+  const groupC = [
+    1743487864934162432, 1584941134203289601, 1763012993682456576, 284333988, 1884131461130825728
+  ];
+  
+  // Group D - processed at 9pm CT
+  const groupD = [
+    18737039, 82331877, 1881168794, 1589007443853340672, 60642052, 1314686042
   ];
   
   // Get current time in Central Time (UTC-6)
@@ -161,18 +168,36 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
   
   console.log(`Current time in Central Time: ${centralTimeHours}:${now.getUTCMinutes()}`);
   
-  // Determine which group to process based on the time
-  // Group A: 6am-10:59am and 4pm-8:59pm Central Time
-  // Group B: 11am-3:59pm and 9pm-5:59am Central Time
+  // Determine which group to process based on the scheduled time
+  // Each group has its own designated time:
+  // Group A: 6am CT
+  // Group B: 11am CT
+  // Group C: 4pm CT (16:00)
+  // Group D: 9pm CT (21:00)
   let userIds;
-  if ((centralTimeHours >= 6 && centralTimeHours < 11) || 
-      (centralTimeHours >= 16 && centralTimeHours < 21)) {
+  let activeGroup;
+  
+  // Check which time window we're in based on the scheduler's times
+  // We'll use a 2-hour window around each scheduled time to accommodate for scheduler variations
+  if (centralTimeHours >= 5 && centralTimeHours < 7) {
     userIds = groupA;
-    console.log(`Processing Group A (${userIds.length} users) at ${centralTimeHours}:${now.getUTCMinutes()} CT`);
-  } else {
+    activeGroup = "Group A (6am CT)";
+  } else if (centralTimeHours >= 10 && centralTimeHours < 12) {
     userIds = groupB;
-    console.log(`Processing Group B (${userIds.length} users) at ${centralTimeHours}:${now.getUTCMinutes()} CT`);
+    activeGroup = "Group B (11am CT)";
+  } else if (centralTimeHours >= 15 && centralTimeHours < 17) {
+    userIds = groupC;
+    activeGroup = "Group C (4pm CT)";
+  } else if (centralTimeHours >= 20 && centralTimeHours < 22) {
+    userIds = groupD;
+    activeGroup = "Group D (9pm CT)";
+  } else {
+    // If we're outside the scheduled windows, use an empty array to avoid making API calls
+    console.log(`Current time ${centralTimeHours}:${now.getUTCMinutes()} CT is outside scheduled collection windows`);
+    return "No data collection scheduled for current time window";
   }
+  
+  console.log(`Processing ${activeGroup} (${userIds.length} users) at ${centralTimeHours}:${now.getUTCMinutes()} CT`);
   
   // Combined array for all tweets
   let allTweets: string[] = [];
@@ -185,7 +210,7 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
         headers: { Authorization: `Bearer ${bearerToken}` },
         params: {
           'tweet.fields': 'created_at,public_metrics',
-          'exclude': 'replies',  // Added this parameter to exclude replies
+          'exclude': 'replies',  // Exclude replies
           max_results: 5
         },
       });
@@ -231,7 +256,7 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
         allTweets = allTweets.concat(userTweets);
       });
       
-      // If not the last batch, add a delay before processing the next batch (increased from 1 to 2 seconds)
+      // If not the last batch, add a delay before processing the next batch
       if (batchIndex < batches.length - 1) {
         console.log(`Waiting 2 seconds before processing next batch...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -240,11 +265,10 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
     
     console.log(`Collected a total of ${allTweets.length} tweets from all users`);
     
-    // Format the tweets into a single string (same format as before)
+    // Format the tweets into a single string
     return allTweets.join('\n\n');
   } catch (error) {
     console.error('Error in fetchFromTwitterUsers:', error);
     throw new Error(`Failed to fetch Twitter user data: ${error.message}`);
   }
 }
-

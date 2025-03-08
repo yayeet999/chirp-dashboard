@@ -59,11 +59,18 @@ const FirasGptPage: React.FC = () => {
       const formattedMinutes = Math.abs(minutes).toString().padStart(2, '0');
       setCentralTime(`${formattedHours}:${formattedMinutes} CT`);
       
-      // Determine which group is active based on Central Time
-      if ((hours >= 6 && hours < 11) || (hours >= 16 && hours < 21)) {
-        setCurrentGroup("Group A (6am-11am, 4pm-9pm CT)");
+      // Determine which group is active based on the time windows
+      // Each group has its own dedicated time window
+      if (hours >= 5 && hours < 7) {
+        setCurrentGroup("Group A (6am CT)");
+      } else if (hours >= 10 && hours < 12) {
+        setCurrentGroup("Group B (11am CT)");
+      } else if (hours >= 15 && hours < 17) {
+        setCurrentGroup("Group C (4pm CT)");
+      } else if (hours >= 20 && hours < 22) {
+        setCurrentGroup("Group D (9pm CT)");
       } else {
-        setCurrentGroup("Group B (11am-4pm, 9pm-6am CT)");
+        setCurrentGroup("No Active Group");
       }
     };
 
@@ -152,7 +159,7 @@ const FirasGptPage: React.FC = () => {
             />
             <MetricCard
               title="Active Group"
-              value={currentGroup.split(" ")[1]}
+              value={currentGroup !== "No Active Group" ? currentGroup.split(" ")[1] : "None"}
               icon={<MessageCircle className="h-5 w-5 text-primary" />}
             />
           </div>
