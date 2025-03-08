@@ -45,6 +45,7 @@ const FirasGptPage: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analysisResult, setAnalysisResult] = useState<string>("");
   const [analysisRecordId, setAnalysisRecordId] = useState<string | null>(null);
+  const [geminiObservation, setGeminiObservation] = useState<string>("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -90,6 +91,7 @@ const FirasGptPage: React.FC = () => {
     setIsAnalyzing(true);
     setAnalysisResult("");
     setAnalysisRecordId(null);
+    setGeminiObservation("");
     
     try {
       const { data, error } = await supabase.functions.invoke('deep_initialanalyzer');
@@ -108,7 +110,35 @@ const FirasGptPage: React.FC = () => {
         setAnalysisResult(data.analysis);
         if (data.recordId) {
           setAnalysisRecordId(data.recordId);
+          
+          // After a brief delay, check for Gemini observation
+          setTimeout(async () => {
+            try {
+              const { data: recordData, error: recordError } = await supabase
+                .from('tweetgenerationflow')
+                .select('geminiobservation')
+                .eq('id', data.recordId)
+                .single();
+                
+              if (recordError) {
+                console.error("Error fetching Gemini observation:", recordError);
+                return;
+              }
+              
+              if (recordData?.geminiobservation) {
+                setGeminiObservation(recordData.geminiobservation);
+                toast({
+                  title: "Gemini Analysis Complete",
+                  description: "Gemini has selected the top observation",
+                  variant: "default"
+                });
+              }
+            } catch (fetchError) {
+              console.error("Failed to fetch Gemini observation:", fetchError);
+            }
+          }, 5000); // Check after 5 seconds
         }
+        
         toast({
           title: "Analysis Complete",
           description: "Deep analysis completed successfully",
@@ -197,14 +227,34 @@ const FirasGptPage: React.FC = () => {
             </div>
             
             {analysisResult && (
-              <div className="mt-4 p-4 bg-secondary/10 rounded-lg">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-sm font-medium">Analysis Result</h3>
-                  {analysisRecordId && (
-                    <span className="text-xs text-muted-foreground">ID: {analysisRecordId}</span>
-                  )}
-                </div>
-                <div className="whitespace-pre-wrap text-sm">{analysisResult}</div>
+              <div className="mt-4">
+                <Tabs defaultValue="deepseek" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="deepseek">DeepSeek Analysis</TabsTrigger>
+                    <TabsTrigger value="gemini">Gemini Top Pick</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="deepseek" className="p-4 bg-secondary/10 rounded-lg mt-2">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-sm font-medium">DeepSeek Analysis</h3>
+                      {analysisRecordId && (
+                        <span className="text-xs text-muted-foreground">ID: {analysisRecordId}</span>
+                      )}
+                    </div>
+                    <div className="whitespace-pre-wrap text-sm">{analysisResult}</div>
+                  </TabsContent>
+                  <TabsContent value="gemini" className="p-4 bg-secondary/10 rounded-lg mt-2">
+                    <h3 className="text-sm font-medium mb-2">Gemini Selected Observation</h3>
+                    {geminiObservation ? (
+                      <div className="whitespace-pre-wrap text-sm">{geminiObservation}</div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">
+                        {isAnalyzing ? 
+                          "Waiting for Gemini analysis to complete..." : 
+                          "No Gemini observation available yet. Please wait or run the analysis again."}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </div>
             )}
           </div>

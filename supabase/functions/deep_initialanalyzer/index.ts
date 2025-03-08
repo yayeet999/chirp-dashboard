@@ -200,13 +200,44 @@ Deno.serve(async (req) => {
     
     console.log("Analysis saved to tweetgenerationflow table:", insertData);
     
+    // Get the record ID for the newly created entry
+    const recordId = insertData?.[0]?.id;
+    
+    // Trigger the geminiinitial2 function with the record ID
+    if (recordId) {
+      console.log("Triggering geminiinitial2 function with record ID:", recordId);
+      
+      try {
+        const geminiResponse = await fetch(`${supabaseUrl}/functions/v1/geminiinitial2`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseAnonKey}`
+          },
+          body: JSON.stringify({ recordId: recordId })
+        });
+        
+        if (!geminiResponse.ok) {
+          const geminiErrorText = await geminiResponse.text();
+          console.error("Error calling geminiinitial2:", geminiErrorText);
+          console.warn("Continuing despite geminiinitial2 error");
+        } else {
+          const geminiResult = await geminiResponse.json();
+          console.log("geminiinitial2 function completed successfully:", geminiResult);
+        }
+      } catch (geminiError) {
+        console.error("Failed to call geminiinitial2 function:", geminiError);
+        console.warn("Continuing despite geminiinitial2 error");
+      }
+    }
+    
     // Return the analysis and contextSection in the response
     return new Response(
       JSON.stringify({ 
         success: true, 
         analysis: analysis,
         context: contextSection,
-        recordId: insertData?.[0]?.id
+        recordId: recordId
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
