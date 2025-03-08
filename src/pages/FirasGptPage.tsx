@@ -63,7 +63,7 @@ const FirasGptPage: React.FC = () => {
               Latest AI Content
             </CardTitle>
             <CardDescription>
-              Collected data from Twitter API (User Timelines) & Perplexity AI
+              Collected data from Twitter API (User Timelines)
             </CardDescription>
           </div>
         </CardHeader>
