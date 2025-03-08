@@ -187,12 +187,26 @@ Deno.serve(async (req) => {
     const analysis = result.choices?.[0]?.message?.content || 
                     "No analysis generated from DeepSeek API";
     
-    // Store the analysis in a new table or return it
+    // Store the analysis in the new tweetgenerationflow table
+    const { data: insertData, error: insertError } = await supabase
+      .from('tweetgenerationflow')
+      .insert([{ deepinitial: analysis }])
+      .select();
+      
+    if (insertError) {
+      console.error("Error inserting analysis into tweetgenerationflow:", insertError);
+      throw new Error("Failed to save analysis to database");
+    }
+    
+    console.log("Analysis saved to tweetgenerationflow table:", insertData);
+    
+    // Return the analysis and contextSection in the response
     return new Response(
       JSON.stringify({ 
         success: true, 
         analysis: analysis,
-        context: contextSection
+        context: contextSection,
+        recordId: insertData?.[0]?.id
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );

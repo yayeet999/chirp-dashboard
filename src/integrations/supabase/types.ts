@@ -75,6 +75,24 @@ export type Database = {
         }
         Relationships: []
       }
+      tweetgenerationflow: {
+        Row: {
+          created_at: string
+          deepinitial: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          deepinitial?: string | null
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          deepinitial?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       unrefined: {
         Row: {
           created_at: string

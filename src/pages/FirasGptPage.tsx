@@ -44,6 +44,7 @@ const FirasGptPage: React.FC = () => {
   const [centralTime, setCentralTime] = useState<string>("");
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analysisResult, setAnalysisResult] = useState<string>("");
+  const [analysisRecordId, setAnalysisRecordId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -88,6 +89,7 @@ const FirasGptPage: React.FC = () => {
   const runDeepAnalysis = async () => {
     setIsAnalyzing(true);
     setAnalysisResult("");
+    setAnalysisRecordId(null);
     
     try {
       const { data, error } = await supabase.functions.invoke('deep_initialanalyzer');
@@ -104,6 +106,9 @@ const FirasGptPage: React.FC = () => {
       
       if (data?.analysis) {
         setAnalysisResult(data.analysis);
+        if (data.recordId) {
+          setAnalysisRecordId(data.recordId);
+        }
         toast({
           title: "Analysis Complete",
           description: "Deep analysis completed successfully",
@@ -193,7 +198,12 @@ const FirasGptPage: React.FC = () => {
             
             {analysisResult && (
               <div className="mt-4 p-4 bg-secondary/10 rounded-lg">
-                <h3 className="text-sm font-medium mb-2">Analysis Result</h3>
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-sm font-medium">Analysis Result</h3>
+                  {analysisRecordId && (
+                    <span className="text-xs text-muted-foreground">ID: {analysisRecordId}</span>
+                  )}
+                </div>
                 <div className="whitespace-pre-wrap text-sm">{analysisResult}</div>
               </div>
             )}
