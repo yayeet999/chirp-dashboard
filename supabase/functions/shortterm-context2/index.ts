@@ -35,19 +35,12 @@ Deno.serve(async (req) => {
   try {
     console.log("Starting short-term context 2 processing...");
     
-    // Calculate date 3 days ago
-    const threeDaysAgo = new Date();
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-    const formattedDate = threeDaysAgo.toISOString();
-    
-    console.log(`Fetching newsletters from ${formattedDate} and earlier`);
-    
-    // Fetch newsletters from 3 days ago and earlier
+    // Fetch the 7 most recent newsletter rows
     const { data: newsletters, error: fetchError } = await supabase
       .from('newsletters')
       .select('content, newsletter_date, created_at')
-      .lte('created_at', formattedDate)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .limit(7);
       
     if (fetchError) {
       console.error("Error fetching newsletters:", fetchError);
@@ -64,6 +57,13 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
+    
+    // Order chronologically (oldest first) for processing
+    newsletters.sort((a, b) => {
+      const dateA = new Date(a.newsletter_date || a.created_at || 0).getTime();
+      const dateB = new Date(b.newsletter_date || b.created_at || 0).getTime();
+      return dateA - dateB;
+    });
     
     // Combine newsletter content in chronological order
     let combinedNewsletters = "";
