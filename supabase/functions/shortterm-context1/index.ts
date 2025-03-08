@@ -105,50 +105,6 @@ ${processedTwitterData}
     const contextId = insertData?.[0]?.id;
     console.log(`Short-term context 1 processing completed and stored with ID: ${contextId}`);
     
-    // Update memory_context table with the new column name
-    const { data: latestMemory, error: memoryFetchError } = await supabase
-      .from('memory_context')
-      .select('id')
-      .order('updated_at', { ascending: false })
-      .limit(1);
-      
-    if (memoryFetchError) {
-      console.error("Error fetching memory context:", memoryFetchError);
-      return new Response(
-        JSON.stringify({ error: "Failed to fetch memory context" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      );
-    }
-    
-    if (latestMemory && latestMemory.length > 0) {
-      // Update existing record
-      const { error: updateError } = await supabase
-        .from('memory_context')
-        .update({ shortterm_context1: processedContext })
-        .eq('id', latestMemory[0].id);
-        
-      if (updateError) {
-        console.error("Error updating memory context:", updateError);
-        return new Response(
-          JSON.stringify({ error: "Failed to update memory context" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-        );
-      }
-    } else {
-      // Create new record if none exists
-      const { error: createError } = await supabase
-        .from('memory_context')
-        .insert([{ shortterm_context1: processedContext }]);
-        
-      if (createError) {
-        console.error("Error creating memory context:", createError);
-        return new Response(
-          JSON.stringify({ error: "Failed to create memory context" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-        );
-      }
-    }
-    
     return new Response(
       JSON.stringify({ 
         success: true, 

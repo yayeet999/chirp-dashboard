@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Bot, Users, MessageCircle, Heart, BarChart2, Repeat, TrendingUp, Eye, ArrowUpRight, FileText, User, Hash, BookOpen } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,7 +64,7 @@ const FirasGptPage: React.FC = () => {
               Latest AI Content
             </CardTitle>
             <CardDescription>
-              Collected data from Twitter API (User Timelines)
+              Collected data from Twitter API (User Timelines) & Perplexity AI
             </CardDescription>
           </div>
         </CardHeader>
@@ -101,13 +102,13 @@ const FirasGptPage: React.FC = () => {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <BookOpen className="h-4 w-4 text-primary" />
-              Newsletter Data
+              Perplexity AI Data
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
               <MetricCard
-                title="Newsletters"
+                title="AI Topics"
                 value="5+"
                 icon={<TrendingUp className="h-5 w-5 text-primary" />}
               />
@@ -169,7 +170,7 @@ const FirasGptPage: React.FC = () => {
         <CardHeader>
           <CardTitle>Collected Content</CardTitle>
           <CardDescription>
-            Historical collected data from Twitter and Newsletters
+            Historical collected data from Twitter and Perplexity
           </CardDescription>
         </CardHeader>
         <CardContent>

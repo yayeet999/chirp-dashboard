@@ -34,25 +34,22 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          mediumterm_context: string | null
-          shortterm_context1: string | null
-          shortterm_context2: string | null
+          mediumterm_memory: string | null
+          shortterm_memory: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
-          mediumterm_context?: string | null
-          shortterm_context1?: string | null
-          shortterm_context2?: string | null
+          mediumterm_memory?: string | null
+          shortterm_memory?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
-          mediumterm_context?: string | null
-          shortterm_context1?: string | null
-          shortterm_context2?: string | null
+          mediumterm_memory?: string | null
+          shortterm_memory?: string | null
           updated_at?: string
         }
         Relationships: []
