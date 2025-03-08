@@ -141,12 +141,17 @@ Deno.serve(async (req) => {
       console.log("Trigger condition met, calling context processing functions in parallel...");
       
       // Call both context processing functions in parallel
-      const [context1Response, context2Response] = await Promise.all([
+      const [context1Response, context2Response, newContextEmbedResponse] = await Promise.all([
         supabase.functions.invoke('shortterm-context1', {
           method: 'POST',
           body: {}
         }),
         supabase.functions.invoke('shortterm-context2', {
+          method: 'POST',
+          body: {}
+        }),
+        // Add our new context embedding function call (asynchronously)
+        supabase.functions.invoke('new_context_embed', {
           method: 'POST',
           body: {}
         })
@@ -163,6 +168,12 @@ Deno.serve(async (req) => {
         console.error("Error calling shortterm-context2 function:", context2Response.error);
       } else {
         console.log("shortterm-context2 function called successfully:", context2Response.data);
+      }
+      
+      if (newContextEmbedResponse.error) {
+        console.error("Error calling new_context_embed function:", newContextEmbedResponse.error);
+      } else {
+        console.log("new_context_embed function called successfully:", newContextEmbedResponse.data);
       }
       
       // Wait a short time to ensure the unrefined data has been updated

@@ -56,9 +56,8 @@ serve(async (req) => {
     // Generate unique ID
     const id = crypto.randomUUID();
     
-    // Insert into Upstash Vector - CORRECTED endpoint
+    // Insert into Upstash Vector
     console.log("Inserting vector with ID:", id);
-    // Use the base URL without appending the index name in the URL
     const vectorResponse = await fetch(`${upstashVectorUrl}/upsert`, {
       method: 'POST',
       headers: {
@@ -66,7 +65,6 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        // Include the index name in the request body
         index: "firasgptknowledge",
         id,
         vector: embedding,
