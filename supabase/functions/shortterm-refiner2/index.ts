@@ -72,57 +72,21 @@ Deno.serve(async (req) => {
     console.log("Processing unrefined content with Gemini API...");
     const refinedContext = await processWithGemini(unrefined.shortterm_context2_unrefined, geminiApiKey);
     
-    // Check if we have an existing memory context record
-    const { data: existingContext, error: getContextError } = await supabase
+    // Always create a new row in memory_context
+    const { data: insertData, error: insertError } = await supabase
       .from('memory_context')
-      .select('id')
-      .order('created_at', { ascending: false })
-      .limit(1);
+      .insert([{ shortterm_context2: refinedContext }])
+      .select('id');
       
-    let contextId;
-    
-    if (getContextError) {
-      console.error("Error checking existing context:", getContextError);
-      // Continue to create a new record
+    if (insertError) {
+      console.error("Error creating memory context:", insertError);
+      return new Response(
+        JSON.stringify({ error: "Failed to create memory context" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
     }
     
-    if (existingContext && existingContext.length > 0) {
-      // Update the existing record
-      const { error: updateError } = await supabase
-        .from('memory_context')
-        .update({ 
-          shortterm_context2: refinedContext,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existingContext[0].id);
-        
-      if (updateError) {
-        console.error("Error updating memory context:", updateError);
-        return new Response(
-          JSON.stringify({ error: "Failed to update memory context" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-        );
-      }
-      
-      contextId = existingContext[0].id;
-    } else {
-      // Create a new record
-      const { data: insertData, error: insertError } = await supabase
-        .from('memory_context')
-        .insert([{ shortterm_context2: refinedContext }])
-        .select('id');
-        
-      if (insertError) {
-        console.error("Error creating memory context:", insertError);
-        return new Response(
-          JSON.stringify({ error: "Failed to create memory context" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-        );
-      }
-      
-      contextId = insertData?.[0]?.id;
-    }
-    
+    const contextId = insertData?.[0]?.id;
     console.log(`Short-term refiner 2 processing completed and stored with ID: ${contextId}`);
     
     return new Response(
