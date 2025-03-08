@@ -127,21 +127,52 @@ Deno.serve(async (req) => {
   }
 });
 
-// Function to fetch data from Twitter user timelines with parallel processing
+// Function to fetch data from Twitter user timelines with parallel processing and group selection
 async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
-  console.log("Fetching data from Twitter user timelines with parallel processing...");
+  console.log("Fetching data from Twitter user timelines with time-based group selection...");
   
   // Base URL for Twitter API v2
   const API_BASE_URL = 'https://api.twitter.com/2';
   
-  // List of user IDs (original list + newly added IDs + the requested ID 1314686042)
-  const userIds = [
-      1353836358901501952, 1599587232175849472, 4398626122, 1720665183188922368,
-      1963466798, 1618975370488999936, 1573399256836309009, 1275333333724000257, 3448284313,
-      6681172, 361044311, 1743487864934162432, 1584941134203289601, 1763012993682456576,
-      284333988, 1884131461130825728, 18737039, 82331877, 1881168794, 1589007443853340672, 60642052,
-      1314686042
+  // Split user IDs into two groups to handle Twitter API rate limits
+  // Group A - processed at 6am and 4pm CT
+  const groupA = [
+    1353836358901501952, 1599587232175849472, 4398626122, 1720665183188922368,
+    1963466798, 1618975370488999936, 1573399256836309009, 1275333333724000257, 3448284313,
+    6681172, 361044311
   ];
+  
+  // Group B - processed at 11am and 9pm CT
+  const groupB = [
+    1743487864934162432, 1584941134203289601, 1763012993682456576,
+    284333988, 1884131461130825728, 18737039, 82331877, 1881168794, 1589007443853340672, 60642052,
+    1314686042
+  ];
+  
+  // Get current time in Central Time (UTC-6)
+  const now = new Date();
+  // Adjust to Central Time (UTC-6)
+  const centralTimeOffset = -6 * 60; // -6 hours in minutes
+  const centralTimeMinutes = now.getUTCHours() * 60 + now.getUTCMinutes() + centralTimeOffset;
+  // Convert back to hours, handling day boundaries
+  let centralTimeHours = Math.floor(centralTimeMinutes / 60);
+  if (centralTimeHours < 0) centralTimeHours += 24;
+  if (centralTimeHours >= 24) centralTimeHours -= 24;
+  
+  console.log(`Current time in Central Time: ${centralTimeHours}:${now.getUTCMinutes()}`);
+  
+  // Determine which group to process based on the time
+  // Group A: 6am-10:59am and 4pm-8:59pm Central Time
+  // Group B: 11am-3:59pm and 9pm-5:59am Central Time
+  let userIds;
+  if ((centralTimeHours >= 6 && centralTimeHours < 11) || 
+      (centralTimeHours >= 16 && centralTimeHours < 21)) {
+    userIds = groupA;
+    console.log(`Processing Group A (${userIds.length} users) at ${centralTimeHours}:${now.getUTCMinutes()} CT`);
+  } else {
+    userIds = groupB;
+    console.log(`Processing Group B (${userIds.length} users) at ${centralTimeHours}:${now.getUTCMinutes()} CT`);
+  }
   
   // Combined array for all tweets
   let allTweets: string[] = [];
