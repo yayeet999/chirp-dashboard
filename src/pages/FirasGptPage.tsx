@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Bot, Users, MessageCircle, FileText, User, Hash, BookOpen } from "lucide-react";
+import { Bot, Users, MessageCircle, FileText, User, Hash, BookOpen, ArrowUpRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/dashboard/StatusBadge";
