@@ -1,4 +1,3 @@
-
 // Data Collection Scheduler
 // This edge function is triggered by a cron job to schedule data collection for user IDs
 
@@ -25,7 +24,24 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
   
   try {
-    console.log("Scheduler triggered, calling data collection function...");
+    // Log the current time in both UTC and Central Time
+    const now = new Date();
+    const utcTime = now.toISOString();
+    
+    // Calculate Central Time (either CST or CDT depending on daylight saving)
+    const centralTime = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+    }).format(now);
+    
+    console.log(`Scheduler triggered at UTC: ${utcTime}, Central Time: ${centralTime}`);
+    console.log("Calling data collection function with parallel processing...");
     
     // Call the data collection function for users
     const usersResponse = await supabase.functions.invoke('data-collection-users', {
@@ -113,6 +129,19 @@ Deno.serve(async (req) => {
             }
             
             console.log("Medium term counter reset to 0");
+          } else {
+            // Get current medium term counter value
+            const getMediumTermResponse = await fetch(`${upstashRedisUrl}/get/medium_term_counter`, {
+              headers: {
+                Authorization: `Bearer ${upstashRedisToken}`
+              }
+            });
+            
+            if (getMediumTermResponse.ok) {
+              const getMediumTermResult = await getMediumTermResponse.json();
+              mediumTermCounter = getMediumTermResult.result || 0;
+              console.log(`Current medium term counter: ${mediumTermCounter}`);
+            }
           }
         } else {
           // Get current medium term counter value
@@ -220,6 +249,8 @@ Deno.serve(async (req) => {
           success: true, 
           message: "Data collection scheduled",
           users: usersResponse.error ? "failed" : "success",
+          execution_time_utc: utcTime,
+          execution_time_central: centralTime,
           cycle_count: dataCollectionCounter,
           medium_term_count: mediumTermCounter,
           context_update_triggered: triggerContextUpdate,
@@ -230,7 +261,11 @@ Deno.serve(async (req) => {
     } else {
       // Function failed
       return new Response(
-        JSON.stringify({ error: "Data collection function failed" }),
+        JSON.stringify({ 
+          error: "Data collection function failed",
+          execution_time_utc: utcTime,
+          execution_time_central: centralTime
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }

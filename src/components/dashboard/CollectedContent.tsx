@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator"; 
-import { RefreshCw, User } from "lucide-react";
+import { RefreshCw, User, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
@@ -14,7 +13,6 @@ interface CollectedContentItem {
   created_at: string;
 }
 
-// Define a helper interface for the processed data to display in the UI
 interface ProcessedContent {
   title: string;
   summary: string;
@@ -33,6 +31,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
 }) => {
   const [content, setContent] = useState<CollectedContentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [executionTimes, setExecutionTimes] = useState<{utc: string, central: string} | null>(null);
   const { toast } = useToast();
 
   const fetchCollectedContent = async () => {
@@ -71,7 +70,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     try {
       toast({
         title: "Processing",
-        description: "Triggering data collection...",
+        description: "Triggering data collection with parallel processing...",
       });
       
       const { data, error } = await supabase.functions.invoke('data-collection-scheduler', {
@@ -82,12 +81,18 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
         throw error;
       }
       
+      if (data && data.execution_time_utc && data.execution_time_central) {
+        setExecutionTimes({
+          utc: data.execution_time_utc,
+          central: data.execution_time_central
+        });
+      }
+      
       toast({
         title: "Success",
-        description: "Data collection has been triggered for user timelines",
+        description: "Parallel data collection has been triggered",
       });
       
-      // Wait a moment and then refresh the content
       setTimeout(() => {
         fetchCollectedContent();
       }, 5000);
@@ -102,7 +107,6 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     }
   };
 
-  // Process twitter_data for display
   const processTwitterData = (text: string | null): ProcessedContent => {
     if (!text) {
       return {
@@ -114,12 +118,10 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     }
 
     try {
-      // Extract topics using some simple heuristics
       const topicRegex = /\b(AI|LLM|GPT|Claude|Mistral|Gemini|Anthropic|OpenAI|DeepMind|Llama|Grok|AGI)\b/gi;
       const matchedTopics = [...new Set(text.match(topicRegex) || [])];
       const topics = matchedTopics.length > 0 ? matchedTopics : ['AI', 'Twitter'];
       
-      // Calculate a mock relevance score based on content length and keyword presence
       const relevanceWords = ['AI', 'GPT', 'LLM', 'model', 'intelligence', 'neural', 'transformer'];
       const wordCount = relevanceWords.reduce((count, word) => {
         const regex = new RegExp(word, 'gi');
@@ -129,11 +131,9 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
       
       const relevance_score = Math.min(100, Math.max(10, wordCount * 10));
       
-      // Extract the first line as title
       const lines = text.split('\n').filter(line => line.trim());
       const title = lines[0]?.substring(0, 100) || "Twitter Data Update";
       
-      // Use the rest as summary
       const summary = lines.slice(1).join('\n') || text;
       
       return {
@@ -154,7 +154,6 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
   };
   
   if (featured && content.length > 0) {
-    // Featured view for single item
     const featuredItem = content[0];
     
     return (
@@ -180,9 +179,18 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
               </Button>
             </div>
             
+            {executionTimes && (
+              <div className="text-xs text-muted-foreground mt-2 mb-3">
+                <span className="flex items-center gap-1">
+                  <Zap className="h-3 w-3" />
+                  Last execution: {executionTimes.central} (Central Time)
+                </span>
+              </div>
+            )}
+            
             <div className="mt-4 flex justify-end">
               <Button variant="ghost" size="sm" onClick={handleManualCollection}>
-                Trigger New Collection
+                Trigger Parallel Collection
               </Button>
             </div>
           </div>
@@ -191,7 +199,6 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     );
   }
   
-  // Helper function to render featured content
   function renderFeaturedContent(text: string | null, type: "twitter") {
     const processedData = processTwitterData(text);
     
@@ -221,7 +228,12 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
   return (
     <Card className={`${featured ? '' : 'glass-card'}`}>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Latest AI Content</CardTitle>
+        <CardTitle>
+          <div className="flex items-center gap-2">
+            Latest AI Content
+            <Badge variant="outline" className="ml-2">Parallel</Badge>
+          </div>
+        </CardTitle>
         <Button 
           variant="outline" 
           size="icon" 
@@ -236,15 +248,24 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
           <div className="text-center py-8">
             <p className="text-muted-foreground mb-4">No content has been collected yet</p>
             <Button onClick={handleManualCollection}>
-              Trigger Data Collection
+              Trigger Parallel Data Collection
             </Button>
           </div>
         ) : (
           <div>
             <div className="flex items-center gap-2 mb-4">
               <User className="h-4 w-4" />
-              <span className="font-medium">User Timelines</span>
+              <span className="font-medium">User Timelines (Parallel Processing)</span>
             </div>
+            
+            {executionTimes && (
+              <div className="text-xs text-muted-foreground mb-4">
+                <span className="flex items-center gap-1">
+                  <Zap className="h-3 w-3" />
+                  Last execution: {executionTimes.central} (Central Time)
+                </span>
+              </div>
+            )}
             
             <div className="space-y-6">
               {content.map((item) => renderContentItem(item, 'twitter_data', 'twitter'))}
@@ -258,7 +279,7 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
             
             <div className="mt-4 flex justify-center">
               <Button onClick={handleManualCollection} disabled={isLoading}>
-                Trigger New Collection
+                Trigger Parallel Collection
               </Button>
             </div>
           </div>
@@ -267,7 +288,6 @@ const CollectedContent: React.FC<CollectedContentProps> = ({
     </Card>
   );
   
-  // Helper function to render a content item
   function renderContentItem(
     item: CollectedContentItem, 
     field: 'twitter_data',

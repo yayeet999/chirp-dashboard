@@ -127,9 +127,9 @@ Deno.serve(async (req) => {
   }
 });
 
-// Function to fetch data from Twitter user timelines
+// Function to fetch data from Twitter user timelines with parallel processing
 async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
-  console.log("Fetching data from Twitter user timelines...");
+  console.log("Fetching data from Twitter user timelines with parallel processing...");
   
   // Base URL for Twitter API v2
   const API_BASE_URL = 'https://api.twitter.com/2';
@@ -143,14 +143,14 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
       1963466798, 1618975370488999936, 1573399256836309009, 1275333333724000257, 3448284313,
       6681172, 361044311, 1743487864934162432, 1584941134203289601, 1763012993682456576,
       284333988, 1884131461130825728, 18737039, 82331877, 1881168794, 1589007443853340672, 60642052,
-      1314686042 // Adding the requested user ID
+      1314686042
   ];
   
   // Combined array for all tweets
   let allTweets: string[] = [];
   
   // Function to fetch tweets from a single user ID, excluding retweets and replies
-  async function fetchTweetsFromUser(userId: number): Promise<void> {
+  async function fetchTweetsFromUser(userId: number): Promise<string[]> {
     try {
       console.log(`Fetching tweets for user ${userId}...`);
       const response = await axiod.get(`${API_BASE_URL}/users/${userId}/tweets`, {
@@ -166,22 +166,54 @@ async function fetchFromTwitterUsers(bearerToken: string): Promise<string> {
       const tweets = response.data.data || [];
       console.log(`Retrieved ${tweets.length} tweets for user ${userId}`);
       
+      const userTweets: string[] = [];
       tweets.forEach((tweet: any) => {
         const likes = tweet.public_metrics?.like_count || 0;
-        allTweets.push(`[User ${userId}] ${tweet.text} (Likes: ${likes})`);
+        userTweets.push(`[User ${userId}] ${tweet.text} (Likes: ${likes})`);
       });
+      
+      return userTweets;
     } catch (error) {
       console.error(`Error fetching tweets for user ${userId}:`, error.message);
+      return []; // Return empty array on error to continue with other users
     }
   }
   
   try {
-    // Fetch tweets from user IDs
-    for (const userId of userIds) {
-      await fetchTweetsFromUser(userId);
+    // Split users into batches of 5 to process in parallel
+    const BATCH_SIZE = 5;
+    const batches = [];
+    
+    for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
+      batches.push(userIds.slice(i, i + BATCH_SIZE));
     }
     
-    // Format the tweets into a single string
+    console.log(`Split ${userIds.length} users into ${batches.length} batches of up to ${BATCH_SIZE} users each`);
+    
+    // Process each batch in parallel with a delay between batches
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+      const batch = batches[batchIndex];
+      console.log(`Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} users`);
+      
+      // Process this batch in parallel
+      const batchPromises = batch.map(userId => fetchTweetsFromUser(userId));
+      const batchResults = await Promise.all(batchPromises);
+      
+      // Add all tweets from this batch to the combined results
+      batchResults.forEach(userTweets => {
+        allTweets = allTweets.concat(userTweets);
+      });
+      
+      // If not the last batch, add a small delay before processing the next batch
+      if (batchIndex < batches.length - 1) {
+        console.log(`Waiting 1 second before processing next batch...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    console.log(`Collected a total of ${allTweets.length} tweets from all users`);
+    
+    // Format the tweets into a single string (same format as before)
     return allTweets.join('\n\n');
   } catch (error) {
     console.error('Error in fetchFromTwitterUsers:', error);
