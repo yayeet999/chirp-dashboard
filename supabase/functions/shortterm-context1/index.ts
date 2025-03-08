@@ -153,11 +153,10 @@ async function processWithGemini(inputData: string, apiKey: string): Promise<str
           {
             parts: [
               {
-                text: `You are an AI assistant specialized in processing and summarizing data from different sources.
+                text: `You are tasked with a simple task of taking the following data from twitter and perplexity and 'cleaning' them. 
                 
-Please analyze and process the following data from Twitter and Perplexity API about recent AI developments.
-Organize the information chronologically and extract the most relevant insights about new AI models, technologies, and trends.
-Focus on factual information and key developments.
+Regarding the Twitter data - Remove the user id numbers, then simply list the individual tweets in chronological order by time/day ensuring that you do NOT alter the individual tweets at all
+Regarding the Perplexity data - Remove all the thinking text (in between '<think>....</think>'), and then also chronologically order by time/day
 
 ${inputData}`
               }
