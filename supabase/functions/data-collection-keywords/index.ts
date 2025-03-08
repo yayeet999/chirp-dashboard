@@ -105,8 +105,17 @@ async function fetchFromPerplexity(apiKey: string): Promise<string> {
     day: 'numeric' 
   });
   
-  // Updated prompt with dynamic date
-  const prompt = `Perform a wide and extensive search to find the most recently released AI models in the past 48 hours from today's date of "${formattedDate}". Focus on both open and closed source ai LLMs. They must have been newly released in the past 48 hours.`;
+  // Updated prompt as specified by the user
+  const prompt = `Using the most up-to-date and reliable sources available, conduct a very wide and comprehensive search for AI language models (LLMs) released within the past 48 hours from ${formattedDate}. Include both open-source and closed-source models globally. For each model found, provide:
+
+1. Model name
+2. Developer/company
+3. Release date (must be within the 48-hour window)
+4. Open-source or closed-source status
+5. Key features or improvements
+6. Source of information
+
+If no new models are found within this timeframe, state that explicitly. Do not include models released before this 48-hour window or speculate about unreleased models. Cite reputable sources for each piece of information[1][2][3]`;
 
   const requestBody = {
     model: "sonar-reasoning-pro",
@@ -145,7 +154,7 @@ async function fetchFromPerplexity(apiKey: string): Promise<string> {
     console.log("Successfully retrieved data from Perplexity API");
     
     // Format the result with prompt information and current date
-    return `[Perplexity Sonar Reasoning Pro] Date: ${formattedDate}\n\nQuery: Find most recently released AI models in the past 48 hours.\n\n${content}`;
+    return `[Perplexity Sonar Reasoning Pro] Date: ${formattedDate}\n\nQuery: Find AI language models released within the past 48 hours.\n\n${content}`;
   } catch (error) {
     console.error('Error in fetchFromPerplexity:', error);
     throw new Error(`Failed to fetch Perplexity data: ${error.message}`);

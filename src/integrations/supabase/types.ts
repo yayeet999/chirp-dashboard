@@ -30,6 +30,30 @@ export type Database = {
         }
         Relationships: []
       }
+      memory_context: {
+        Row: {
+          created_at: string
+          id: string
+          mediumterm_memory: string | null
+          shortterm_memory: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mediumterm_memory?: string | null
+          shortterm_memory?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mediumterm_memory?: string | null
+          shortterm_memory?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       newsletters: {
         Row: {
           content: string
