@@ -167,7 +167,7 @@ You are to remove all of the following phrase IF present:
 - '### Tavus’s AI Avatars'
 
 Also, For each section in the text, condense the 'Original Text' part WITHOUT omitting any data, details, concepts or information. Keep headings, summaries, and key points unchanged.
-And ensure the text is properly chronologically ordered
+And ensure the text is properly chronologically ordered. FINAL INSTRUCTIONS - Perform only the instructions assigned to you. Do not include extra side comments or statements.
 
 
 
