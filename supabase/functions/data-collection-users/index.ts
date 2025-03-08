@@ -86,8 +86,8 @@ Deno.serve(async (req) => {
       dataCollectionCounter = incrementResult.result;
       console.log(`Data collection counter incremented to: ${dataCollectionCounter}`);
       
-      // Check if we need to update medium-term context (after 20 cycles instead of 48)
-      if (dataCollectionCounter >= 20) {
+      // Check if we need to update medium-term context (after 12 cycles instead of 20)
+      if (dataCollectionCounter >= 12) {
         console.log("Triggering medium-term context update...");
         
         // Reset counter in Redis
