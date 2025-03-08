@@ -1,9 +1,8 @@
 
 import React from "react";
-import { Bot, Users, MessageCircle, Heart, BarChart2, Repeat, TrendingUp, Eye, ArrowUpRight, FileText, User, Hash, BookOpen } from "lucide-react";
+import { Bot, Users, MessageCircle, FileText, User, Hash, BookOpen } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import StatusBadge from "@/components/dashboard/StatusBadge";
 import CollectedContent from "@/components/dashboard/CollectedContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -73,132 +72,26 @@ const FirasGptPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Data Source Metrics */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="glass-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <User className="h-4 w-4 text-primary" />
-              User Timeline Data
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <MetricCard
-                title="User Accounts"
-                value="15"
-                icon={<Users className="h-5 w-5 text-primary" />}
-              />
-              <MetricCard
-                title="Timeline Posts"
-                value="N/A"
-                icon={<MessageCircle className="h-5 w-5 text-primary" />}
-              />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="glass-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <BookOpen className="h-4 w-4 text-primary" />
-              Perplexity AI Data
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <MetricCard
-                title="AI Topics"
-                value="5+"
-                icon={<TrendingUp className="h-5 w-5 text-primary" />}
-              />
-              <MetricCard
-                title="Data Freshness"
-                value="48h"
-                icon={<Eye className="h-5 w-5 text-primary" />}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Engagement Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          title="Total Impressions"
-          value="N/A"
-          icon={<Eye className="h-5 w-5 text-primary" />}
-        />
-        <MetricCard
-          title="Engagements"
-          value="No data yet"
-          icon={<Users className="h-5 w-5 text-primary" />}
-        />
-        <MetricCard
-          title="Likes"
-          value="—"
-          icon={<Heart className="h-5 w-5 text-primary" />}
-        />
-        <MetricCard
-          title="Retweets"
-          value="—"
-          icon={<Repeat className="h-5 w-5 text-primary" />}
-        />
-      </div>
-
-      {/* Performance Trends */}
+      {/* Data Source Metrics - Only User Timeline Data */}
       <Card className="glass-card">
-        <CardHeader>
-          <CardTitle>Performance Trends</CardTitle>
-          <CardDescription>
-            AI content engagement metrics over time
-          </CardDescription>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <User className="h-4 w-4 text-primary" />
+            User Timeline Data
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-64 border rounded-md border-dashed mb-4">
-            <div className="text-center space-y-2">
-              <BarChart2 className="h-10 w-10 text-muted-foreground mx-auto" />
-              <p className="text-muted-foreground">No performance data available yet</p>
-              <Button variant="outline" size="sm">Refresh Data</Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Top Performing Content */}
-      <Card className="glass-card">
-        <CardHeader>
-          <CardTitle>Collected Content</CardTitle>
-          <CardDescription>
-            Historical collected data from Twitter and Perplexity
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <CollectedContent limit={3} />
-        </CardContent>
-      </Card>
-
-      {/* Audience Insights */}
-      <Card className="glass-card">
-        <CardHeader>
-          <CardTitle>Audience Insights</CardTitle>
-          <CardDescription>Demographics and interests</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <h3 className="text-sm font-medium mb-2">Location</h3>
-              <div className="flex items-center justify-center h-40 border rounded-md border-dashed">
-                <p className="text-muted-foreground">No location data available</p>
-              </div>
-            </div>
-            <Separator className="md:h-auto hidden md:block" orientation="vertical" />
-            <div className="flex-1">
-              <h3 className="text-sm font-medium mb-2">Interests</h3>
-              <div className="flex items-center justify-center h-40 border rounded-md border-dashed">
-                <p className="text-muted-foreground">No interest data available</p>
-              </div>
-            </div>
+          <div className="grid grid-cols-2 gap-4">
+            <MetricCard
+              title="User Accounts"
+              value="15"
+              icon={<Users className="h-5 w-5 text-primary" />}
+            />
+            <MetricCard
+              title="Timeline Posts"
+              value="N/A"
+              icon={<MessageCircle className="h-5 w-5 text-primary" />}
+            />
           </div>
         </CardContent>
       </Card>

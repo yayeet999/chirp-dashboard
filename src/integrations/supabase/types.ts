@@ -13,19 +13,16 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          perplexity_data: string | null
           twitter_data: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
-          perplexity_data?: string | null
           twitter_data?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
-          perplexity_data?: string | null
           twitter_data?: string | null
         }
         Relationships: []
