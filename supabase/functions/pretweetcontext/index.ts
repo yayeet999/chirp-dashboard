@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -129,7 +130,7 @@ serve(async (req) => {
 async function processVectorSearch(text: string, apiKey: string, vectorUrl: string, vectorToken: string) {
   console.log("Creating embedding for vector search...");
   
-  // Clean the input text - keeping original as we want to match with markdown
+  // Use the input text as is - no cleaning needed
   const cleanText = text;
   console.log("Input text length for embedding:", cleanText.length);
   
@@ -158,82 +159,8 @@ async function processVectorSearch(text: string, apiKey: string, vectorUrl: stri
     
     console.log("Successfully generated embedding, vector dimension:", embedding.length);
     
-    // Try a series of approaches to find matches
-    const approaches = [
-      { name: "Basic search with no filter", filter: undefined, threshold: 0.40 },
-      { name: "Search with simple filter", filter: { "metadata.text": {"$exists": true} }, threshold: 0.40 },
-      { name: "Search with all fields", filter: undefined, threshold: 0 }
-    ];
-    
-    for (const approach of approaches) {
-      console.log(`Trying vector search approach: ${approach.name}`);
-      
-      const vectorRequestBody: any = {
-        index: "firasgptknowledge",
-        vector: embedding,
-        topK: 10,
-        includeMetadata: true,
-        includeVectors: false
-      };
-      
-      // Only add filter and threshold if defined
-      if (approach.filter) {
-        vectorRequestBody.filter = approach.filter;
-      }
-      
-      if (approach.threshold > 0) {
-        vectorRequestBody.scoreThreshold = approach.threshold;
-      }
-      
-      console.log("Vector search request:", JSON.stringify(vectorRequestBody));
-      
-      try {
-        const vectorResponse = await fetch(`${vectorUrl}/query`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${vectorToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(vectorRequestBody),
-        });
-
-        if (!vectorResponse.ok) {
-          const errorText = await vectorResponse.text();
-          console.error(`Upstash Vector API error for approach ${approach.name}:`, errorText);
-          console.log("Trying next approach...");
-          continue;
-        }
-
-        const vectorResult = await vectorResponse.json();
-        console.log(`Approach ${approach.name} response status:`, vectorResult.status || "No status");
-        
-        if (vectorResult.matches && vectorResult.matches.length > 0) {
-          console.log(`Found ${vectorResult.matches.length} matches with approach: ${approach.name}`);
-          
-          // Log the first match to understand what we're getting back
-          if (vectorResult.matches[0]) {
-            console.log("First match example - score:", vectorResult.matches[0].score);
-            console.log("First match metadata keys:", Object.keys(vectorResult.matches[0].metadata || {}));
-          }
-          
-          // Return matches if found
-          return vectorResult.matches.map((match: any) => ({
-            text: match.metadata?.text || "No text available",
-            source: match.metadata?.source || "Unknown source",
-            type: match.metadata?.type || "Unknown type",
-            score: match.score
-          }));
-        }
-        
-        console.log(`No matches found with approach: ${approach.name}`);
-      } catch (error) {
-        console.error(`Error with approach ${approach.name}:`, error);
-        console.log("Trying next approach...");
-      }
-    }
-    
-    // Last resort direct format for the query with no parsing
-    console.log("Trying final direct approach with minimal query");
+    // Simplified approach - first try with absolutely minimal query
+    console.log("Trying simplified vector search with minimal parameters");
     
     try {
       const finalRequestBody = {
@@ -243,9 +170,9 @@ async function processVectorSearch(text: string, apiKey: string, vectorUrl: stri
         "includeMetadata": true
       };
       
-      console.log("Final vector search request:", JSON.stringify(finalRequestBody));
+      console.log("Vector search request:", JSON.stringify(finalRequestBody));
       
-      const finalResponse = await fetch(`${vectorUrl}/query`, {
+      const vectorResponse = await fetch(`${vectorUrl}/query`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${vectorToken}`,
@@ -254,48 +181,57 @@ async function processVectorSearch(text: string, apiKey: string, vectorUrl: stri
         body: JSON.stringify(finalRequestBody),
       });
       
-      if (!finalResponse.ok) {
-        const errorText = await finalResponse.text();
-        console.error("Final Upstash Vector API error:", errorText);
-        return [];
+      if (!vectorResponse.ok) {
+        const errorText = await vectorResponse.text();
+        console.error("Upstash Vector API error:", errorText);
+        throw new Error("Failed to perform vector search");
       }
       
-      const finalResult = await finalResponse.json();
-      console.log("Final approach response:", JSON.stringify(finalResult).substring(0, 200) + "...");
+      const vectorResult = await vectorResponse.json();
+      console.log("Vector search response status:", vectorResult.status || "No status");
       
-      if (finalResult.matches && finalResult.matches.length > 0) {
-        console.log(`Found ${finalResult.matches.length} matches in final approach`);
-        return finalResult.matches.map((match: any) => ({
+      if (vectorResult.matches && vectorResult.matches.length > 0) {
+        console.log(`Found ${vectorResult.matches.length} matches`);
+        
+        // Log the first match to understand what we're getting back
+        if (vectorResult.matches[0]) {
+          console.log("First match example - score:", vectorResult.matches[0].score);
+          console.log("First match metadata keys:", Object.keys(vectorResult.matches[0].metadata || {}));
+        }
+        
+        // Return matches if found
+        return vectorResult.matches.map((match: any) => ({
           text: match.metadata?.text || "No text available",
           source: match.metadata?.source || "Unknown source",
           type: match.metadata?.type || "Unknown type",
           score: match.score
         }));
       }
-    } catch (error) {
-      console.error("Error in final approach:", error);
-    }
-    
-    console.log("No matches found in vector search after all attempts");
-    
-    // For debugging - let's query what data we actually have in the index
-    console.log("Checking index info to verify it contains data");
-    try {
-      const infoResponse = await fetch(`${vectorUrl}/info?index=firasgptknowledge`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${vectorToken}`
-        }
-      });
       
-      if (infoResponse.ok) {
-        const infoData = await infoResponse.json();
-        console.log("Index info:", JSON.stringify(infoData));
-      } else {
-        console.error("Could not get index info:", await infoResponse.text());
+      console.log("No matches found in vector search");
+      
+      // For debugging - check what data we actually have in the index
+      console.log("Checking index info to verify it contains data");
+      try {
+        const infoResponse = await fetch(`${vectorUrl}/info?index=firasgptknowledge`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${vectorToken}`
+          }
+        });
+        
+        if (infoResponse.ok) {
+          const infoData = await infoResponse.json();
+          console.log("Index info:", JSON.stringify(infoData));
+        } else {
+          console.error("Could not get index info:", await infoResponse.text());
+        }
+      } catch (infoError) {
+        console.error("Error checking index info:", infoError);
       }
-    } catch (infoError) {
-      console.error("Error checking index info:", infoError);
+    } catch (error) {
+      console.error("Error in vector search:", error);
+      throw new Error("Failed to perform vector search");
     }
     
     return [];

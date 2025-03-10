@@ -47,6 +47,7 @@ const FirasGptPage: React.FC = () => {
   const [geminiObservation, setGeminiObservation] = useState<string>("");
   const [vectorContext, setVectorContext] = useState<any[]>([]);
   const [sonarResearch, setSonarResearch] = useState<string>("");
+  const [isProcessingContext, setIsProcessingContext] = useState<boolean>(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -207,6 +208,94 @@ const FirasGptPage: React.FC = () => {
     }
   };
 
+  const processVectorAndResearch = async () => {
+    if (!analysisRecordId || !geminiObservation) {
+      toast({
+        title: "Missing Data",
+        description: "Need Gemini observation first. Run analysis first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsProcessingContext(true);
+    setVectorContext([]);
+    setSonarResearch("");
+
+    try {
+      const { data, error } = await supabase.functions.invoke('pretweetcontext', {
+        body: { recordId: analysisRecordId }
+      });
+
+      if (error) {
+        console.error("Error processing context:", error);
+        toast({
+          title: "Context Processing Failed",
+          description: error.message || "Failed to process context data",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (data?.success) {
+        toast({
+          title: "Context Processing Started",
+          description: `Processing started with ${data.vectorMatchCount || 0} vector matches`,
+          variant: "default"
+        });
+
+        setTimeout(async () => {
+          const { data: updatedRecord, error: fetchError } = await supabase
+            .from('tweetgenerationflow')
+            .select('vectorcontext, sonardeepresearch')
+            .eq('id', analysisRecordId)
+            .single();
+            
+          if (fetchError) {
+            console.error("Error fetching context data:", fetchError);
+            return;
+          }
+          
+          if (updatedRecord) {
+            try {
+              if (updatedRecord.vectorcontext) {
+                const parsedVectorContext = JSON.parse(updatedRecord.vectorcontext);
+                setVectorContext(parsedVectorContext);
+                
+                toast({
+                  title: "Vector Context Available",
+                  description: "Vector search results have been loaded",
+                  variant: "default"
+                });
+              }
+              
+              if (updatedRecord.sonardeepresearch) {
+                setSonarResearch(updatedRecord.sonardeepresearch);
+                
+                toast({
+                  title: "Research Complete",
+                  description: "Sonar deep research has been loaded",
+                  variant: "default"
+                });
+              }
+            } catch (parseError) {
+              console.error("Error parsing context data:", parseError);
+            }
+          }
+        }, 5000);
+      }
+    } catch (error) {
+      console.error("Failed to process context:", error);
+      toast({
+        title: "Context Processing Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessingContext(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between mb-6">
@@ -271,6 +360,15 @@ const FirasGptPage: React.FC = () => {
                 className="w-full md:w-auto"
               >
                 {isAnalyzing ? "Analyzing..." : "Run Deep Analysis"} 
+              </Button>
+              
+              <Button 
+                onClick={processVectorAndResearch} 
+                disabled={isProcessingContext || !geminiObservation}
+                variant="outline"
+                className="w-full md:w-auto"
+              >
+                {isProcessingContext ? "Processing..." : "Process Context Data"} 
               </Button>
             </div>
             
