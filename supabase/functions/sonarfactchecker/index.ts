@@ -60,40 +60,58 @@ serve(async (req) => {
     console.log("Research content length:", researchContent.length);
     console.log("Research content (first 200 chars):", researchContent.substring(0, 200));
     
-    // Call the fact check research function with improved API structure
-    const factCheckedContent = await callFactCheckResearch(researchContent, perplexityApiKey);
-    
-    if (!factCheckedContent) {
-      throw new Error("Fact checking returned empty content");
-    }
-    
-    console.log("Fact checking complete. Saving results to database...");
-    console.log("Fact checked content length:", factCheckedContent.length);
-    console.log("Fact checked content (first 200 chars):", factCheckedContent.substring(0, 200));
-    
-    // Save the fact-checked content back to the database
-    const { data: updateData, error: updateError } = await supabase
-      .from('tweetgenerationflow')
-      .update({
-        sonarfactchecked: factCheckedContent
-      })
-      .eq('id', recordId);
+    // Use backgroundProcessFactCheck function for the long-running operation
+    // and return a quick response to avoid timeout
+    const backgroundTask = async () => {
+      console.log(`Background task started for record: ${recordId}`);
       
-    if (updateError) {
-      console.error("Error updating record with fact-checked content:", updateError);
-      throw new Error(`Failed to save fact-checked content to database: ${updateError.message}`);
-    }
+      try {
+        // Call the fact check research function with improved API structure
+        const factCheckedContent = await callFactCheckResearch(researchContent, perplexityApiKey);
+        
+        if (!factCheckedContent) {
+          console.error("Background task error: Fact checking returned empty content");
+          return;
+        }
+        
+        console.log("Fact checking complete in background task. Saving results to database...");
+        console.log("Fact checked content length:", factCheckedContent.length);
+        console.log("Fact checked content (first 200 chars):", factCheckedContent.substring(0, 200));
+        
+        // Save the fact-checked content back to the database
+        const { data: updateData, error: updateError } = await supabase
+          .from('tweetgenerationflow')
+          .update({
+            sonarfactchecked: factCheckedContent
+          })
+          .eq('id', recordId);
+          
+        if (updateError) {
+          console.error("Background task error: Error updating record with fact-checked content:", updateError);
+          return;
+        }
+        
+        console.log("Background task completed: Fact-checked content saved to database successfully");
+      } catch (error) {
+        console.error("Background task error: Fact checking process failed:", error);
+      }
+    };
     
-    console.log("Fact-checked content saved to database successfully");
+    // Start background processing without waiting for completion
+    // @ts-ignore - EdgeRuntime is available in Deno edge runtime but TypeScript doesn't know about it
+    EdgeRuntime.waitUntil(backgroundTask());
     
-    // Return success response
+    console.log(`Initiated background fact-checking for record: ${recordId}`);
+    
+    // Return immediate success response while processing continues in background
     return new Response(
       JSON.stringify({ 
         success: true, 
         recordId: recordId,
-        message: "Fact checking completed successfully"
+        message: "Fact checking initiated and will continue in the background",
+        status: "processing"
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 202 }
     );
     
   } catch (error) {
@@ -171,3 +189,8 @@ ${reportContent}`;
     throw new Error(`Verification failed: ${error.message}`);
   }
 }
+
+// Listen for shutdown event to log when the function is terminated
+addEventListener('beforeunload', (event) => {
+  console.log('Function is shutting down, reason:', event.detail?.reason);
+});
