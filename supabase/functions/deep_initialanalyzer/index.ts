@@ -18,12 +18,16 @@ Deno.serve(async (req) => {
   const supabaseUrl = environmentVariables.SUPABASE_URL || '';
   const supabaseAnonKey = environmentVariables.SUPABASE_ANON_KEY || '';
   
+  console.log("[INIT] Starting deep initial analysis with configuration:", {
+    hasUrl: !!supabaseUrl,
+    hasAnonKey: !!supabaseAnonKey
+  });
+  
   // Initialize Supabase client
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
   
   try {
-    console.log("Starting deep initial analysis...");
-    
+    console.log("[FETCH] Retrieving medium-term context entries...");
     // Fetch the 3 most recent medium-term context entries
     const { data: mediumTermData, error: mediumTermError } = await supabase
       .from('memory_context')
@@ -33,10 +37,18 @@ Deno.serve(async (req) => {
       .limit(3);
       
     if (mediumTermError) {
-      console.error("Error fetching medium-term context:", mediumTermError);
+      console.error("[ERROR] Failed to fetch medium-term context:", {
+        error: mediumTermError,
+        errorMessage: mediumTermError.message,
+        details: mediumTermError.details,
+        hint: mediumTermError.hint
+      });
       throw new Error("Failed to fetch medium-term context");
     }
     
+    console.log(`[FETCH] Retrieved ${mediumTermData?.length || 0} medium-term context entries`);
+    
+    console.log("[FETCH] Retrieving short-term context1 entries...");
     // Fetch the 6 most recent short-term context1 entries
     const { data: shortTerm1Data, error: shortTerm1Error } = await supabase
       .from('memory_context')
@@ -46,10 +58,18 @@ Deno.serve(async (req) => {
       .limit(6);
       
     if (shortTerm1Error) {
-      console.error("Error fetching short-term context1:", shortTerm1Error);
+      console.error("[ERROR] Failed to fetch short-term context1:", {
+        error: shortTerm1Error,
+        errorMessage: shortTerm1Error.message,
+        details: shortTerm1Error.details,
+        hint: shortTerm1Error.hint
+      });
       throw new Error("Failed to fetch short-term context1");
     }
     
+    console.log(`[FETCH] Retrieved ${shortTerm1Data?.length || 0} short-term context1 entries`);
+    
+    console.log("[FETCH] Retrieving short-term context2 entries...");
     // Fetch the 6 most recent short-term context2 entries
     const { data: shortTerm2Data, error: shortTerm2Error } = await supabase
       .from('memory_context')
@@ -59,56 +79,71 @@ Deno.serve(async (req) => {
       .limit(6);
       
     if (shortTerm2Error) {
-      console.error("Error fetching short-term context2:", shortTerm2Error);
+      console.error("[ERROR] Failed to fetch short-term context2:", {
+        error: shortTerm2Error,
+        errorMessage: shortTerm2Error.message,
+        details: shortTerm2Error.details,
+        hint: shortTerm2Error.hint
+      });
       throw new Error("Failed to fetch short-term context2");
     }
+    
+    console.log(`[FETCH] Retrieved ${shortTerm2Data?.length || 0} short-term context2 entries`);
     
     // Format the medium-term trends
     let mediumTermTrends = "- Medium-term trends:\n";
     if (mediumTermData && mediumTermData.length > 0) {
+      console.log("[FORMAT] Formatting medium-term trends with", mediumTermData.length, "entries");
       mediumTermData.forEach((entry, index) => {
         if (entry.mediumterm_context) {
           mediumTermTrends += `  - Entry ${index + 1} (${new Date(entry.created_at).toISOString().split('T')[0]}):\n    ${entry.mediumterm_context.replace(/\n/g, '\n    ')}\n\n`;
         }
       });
     } else {
+      console.log("[FORMAT] No medium-term trends data available");
       mediumTermTrends += "  [No medium-term context available]\n\n";
     }
     
     // Format the short-term context1
     let shortTerm1Context = "- Short-term context (tweet analysis):\n";
     if (shortTerm1Data && shortTerm1Data.length > 0) {
+      console.log("[FORMAT] Formatting short-term context1 with", shortTerm1Data.length, "entries");
       shortTerm1Data.forEach((entry, index) => {
         if (entry.shortterm_context1) {
           shortTerm1Context += `  - Entry ${index + 1} (${new Date(entry.created_at).toISOString().split('T')[0]}):\n    ${entry.shortterm_context1.replace(/\n/g, '\n    ')}\n\n`;
         }
       });
     } else {
+      console.log("[FORMAT] No short-term context1 data available");
       shortTerm1Context += "  [No short-term context1 available]\n\n";
     }
     
     // Format the short-term context2
     let shortTerm2Highlights = "- Short-term news highlights:\n";
     if (shortTerm2Data && shortTerm2Data.length > 0) {
+      console.log("[FORMAT] Formatting short-term context2 with", shortTerm2Data.length, "entries");
       shortTerm2Data.forEach((entry, index) => {
         if (entry.shortterm_context2) {
           shortTerm2Highlights += `  - Entry ${index + 1} (${new Date(entry.created_at).toISOString().split('T')[0]}):\n    ${entry.shortterm_context2.replace(/\n/g, '\n    ')}\n\n`;
         }
       });
     } else {
+      console.log("[FORMAT] No short-term context2 data available");
       shortTerm2Highlights += "  [No short-term context2 available]\n\n";
     }
     
     // Prepare the full context section
     const contextSection = `**CONTEXT SECTION:**\n\n- Recent tweets history: [Empty]\n\n${mediumTermTrends}${shortTerm1Context}${shortTerm2Highlights}`;
     
-    console.log("Context section prepared:", contextSection);
+    console.log("[CONTEXT] Full context section prepared, length:", contextSection.length, "characters");
+    console.log("[CONTEXT] First 200 characters of context:", contextSection.substring(0, 200));
     
     // Call DeepSeek API
     const deepseekAPIEndpoint = "https://api.deepseek.com/v1/chat/completions";
     const deepseekAPIKey = Deno.env.get("DEEPSEEK_API_KEY");
     
     if (!deepseekAPIKey) {
+      console.error("[ERROR] Missing DEEPSEEK_API_KEY environment variable");
       throw new Error("Missing DEEPSEEK_API_KEY environment variable");
     }
     
@@ -163,7 +198,8 @@ Deno.serve(async (req) => {
       max_tokens: 4000
     };
     
-    console.log("Calling DeepSeek API...");
+    console.log("[API] Calling DeepSeek API with payload length:", JSON.stringify(payload).length);
+    console.log("[API] Using model:", payload.model);
     
     const response = await fetch(deepseekAPIEndpoint, {
       method: "POST",
@@ -176,17 +212,27 @@ Deno.serve(async (req) => {
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("DeepSeek API error:", errorText);
+      console.error("[ERROR] DeepSeek API error:", {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody: errorText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
       throw new Error(`DeepSeek API returned ${response.status}: ${errorText}`);
     }
     
     const result = await response.json();
-    console.log("DeepSeek API response:", JSON.stringify(result, null, 2));
+    console.log("[API] DeepSeek API response received:", {
+      hasChoices: !!result.choices,
+      choicesLength: result.choices?.length,
+      firstChoiceLength: result.choices?.[0]?.message?.content?.length
+    });
     
     // Extract the analysis from the response
     const analysis = result.choices?.[0]?.message?.content || 
                     "No analysis generated from DeepSeek API";
     
+    console.log("[DB] Storing analysis in tweetgenerationflow table...");
     // Store the analysis in the new tweetgenerationflow table
     const { data: insertData, error: insertError } = await supabase
       .from('tweetgenerationflow')
@@ -194,18 +240,22 @@ Deno.serve(async (req) => {
       .select();
       
     if (insertError) {
-      console.error("Error inserting analysis into tweetgenerationflow:", insertError);
+      console.error("[ERROR] Failed to insert analysis into tweetgenerationflow:", {
+        error: insertError,
+        errorMessage: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint
+      });
       throw new Error("Failed to save analysis to database");
     }
     
-    console.log("Analysis saved to tweetgenerationflow table:", insertData);
+    console.log("[DB] Analysis saved successfully, record:", insertData);
     
     // Get the record ID for the newly created entry
     const recordId = insertData?.[0]?.id;
     
-    // Trigger the geminiinitial2 function with the record ID
     if (recordId) {
-      console.log("Triggering geminiinitial2 function with record ID:", recordId);
+      console.log("[TRIGGER] Triggering geminiinitial2 function with record ID:", recordId);
       
       try {
         const geminiResponse = await fetch(`${supabaseUrl}/functions/v1/geminiinitial2`, {
@@ -219,17 +269,28 @@ Deno.serve(async (req) => {
         
         if (!geminiResponse.ok) {
           const geminiErrorText = await geminiResponse.text();
-          console.error("Error calling geminiinitial2:", geminiErrorText);
-          console.warn("Continuing despite geminiinitial2 error");
+          console.error("[ERROR] Failed to call geminiinitial2:", {
+            status: geminiResponse.status,
+            statusText: geminiResponse.statusText,
+            errorBody: geminiErrorText,
+            headers: Object.fromEntries(geminiResponse.headers.entries())
+          });
+          console.warn("[WARN] Continuing despite geminiinitial2 error");
         } else {
           const geminiResult = await geminiResponse.json();
-          console.log("geminiinitial2 function completed successfully:", geminiResult);
+          console.log("[TRIGGER] geminiinitial2 function completed successfully:", geminiResult);
         }
       } catch (geminiError) {
-        console.error("Failed to call geminiinitial2 function:", geminiError);
-        console.warn("Continuing despite geminiinitial2 error");
+        console.error("[ERROR] Exception while calling geminiinitial2 function:", {
+          error: geminiError,
+          message: geminiError.message,
+          stack: geminiError.stack
+        });
+        console.warn("[WARN] Continuing despite geminiinitial2 error");
       }
     }
+    
+    console.log("[SUCCESS] Deep initial analysis completed successfully");
     
     // Return the analysis and contextSection in the response
     return new Response(
@@ -243,10 +304,16 @@ Deno.serve(async (req) => {
     );
     
   } catch (error) {
-    console.error("Deep initial analysis failed:", error);
+    console.error("[ERROR] Deep initial analysis failed:", {
+      error: error,
+      message: error.message,
+      stack: error.stack,
+      type: error.constructor.name
+    });
     return new Response(
       JSON.stringify({ error: "Deep initial analysis failed", details: error.message }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
 });
+
