@@ -140,10 +140,11 @@ async function callFactCheckResearch(reportContent, apiKey) {
   // Prepare the system instructions to be included in the user message
   const systemInstructionText = `Act as an expert meticulous fact-checker researcher. Process the following research text as follows:
 1. REMOVE the entire <think>...text...</think> section at the beginning of the provided research text (delete without analysis)
-2. Thoroughly verify and fact-check the entire remaining research text using reputable sources OUTPUT ONLY THE UPDATED AND CORRECTED VERSION OF THE EXACT RESEARCH TEXT YOU WERE GIVEN.
+2. Thoroughly verify and fact-check the entire remaining research text using reputable sources by performing a comprehensive web search across many different reputable relevant domains
 3. Cross-check data, claims, metrics, and statistics with primary sources
-4. Correct or remove any statements, claims, or data points determined to be false or inaccurate
-5. OUTPUT ONLY THE UPDATED AND CORRECTED VERSION OF THE EXACT RESEARCH TEXT YOU WERE GIVEN. IF no corrections or updates are needed after your thorough verification, simply output the original research text you were given exactly as you were given, minus the removed <think> section. Do not include extra comments or statements
+4. CORRECT OR REMOVE ANY STATEMENT, CLAIMS, OR DATA POINTS DETERMINE TO BE FACTUALLY FALSE OR INACCURATE
+5. HOWEVER LEAVE FACTUALLY CORRECT SECTIONS AND TEXT UNAFFECTED AND UNEDITED
+6. AFTER YOU HAVE THOROUGHLY AND CORRECTLY FACT-CHECKED AND CORRECTED/UPDATED ANY POTENTIAL ERRORS, OUTPUT ONLY THE UPDATED AND CORRECTED VERSION (if corrections were needed) OF THE RESEARCH TEXT YOU WERE GIVEN. IF no corrections or updates are needed after your thorough verification, simply output the original research text you were given exactly as you were given, minus the removed <think> section. However if corrections WERE needed, output the entire same research text with the previously factually incorrect errors now fully correct and properly fact-checked, also minus the <think> section. 
 
 Here is the text to process:
 ${reportContent}`;
