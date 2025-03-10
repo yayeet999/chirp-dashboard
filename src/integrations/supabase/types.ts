@@ -79,16 +79,19 @@ export type Database = {
         Row: {
           created_at: string
           deepinitial: string | null
+          geminiobservation: string | null
           id: string
         }
         Insert: {
           created_at?: string
           deepinitial?: string | null
+          geminiobservation?: string | null
           id?: string
         }
         Update: {
           created_at?: string
           deepinitial?: string | null
+          geminiobservation?: string | null
           id?: string
         }
         Relationships: []

@@ -102,7 +102,15 @@ Now internally calculate each observation's hypothetical score, then rank them f
 - **Audience Resonance**: Bonus score if the keywords/phrases of the observations are commonly found in the included context sources.  
 
 **4. Final Selection**  
-Now focus on the top 2-3 observations after applying the above adjustments. Based on everything we've discussed, make a judgement call and select a single observation. This single observation will be your output. Do not alter or edit it.`;
+Now focus on the top 2-3 observations after applying the above adjustments. Based on everything we've discussed, make a judgement call and select a single observation. This single observation will be your output.
+
+**CRITICALLY IMPORTANT OUTPUT INSTRUCTIONS:**
+- You MUST output ONLY the exact text of your chosen observation, with ABSOLUTELY NO modifications or additions
+- Do NOT add any introduction, explanation, reasoning, or conclusion
+- Do NOT add phrases like "I've selected" or "The best observation is"
+- Do NOT add any additional thoughts or commentary
+- Simply output the exact text of the chosen observation, preserving its original format (including the Observation number, Summary, and Why It's Relevant sections)
+- Your entire response should ONLY be the verbatim text of the selected observation, nothing more and nothing less`;
 
     const userInput = `Recent Tweet History:
 ${recentTweetHistory}
@@ -110,7 +118,7 @@ ${recentTweetHistory}
 Deep Initial Analysis Observations:
 ${record.deepinitial}
 
-Based on the system prompt instructions, select the single best observation that would make the most strategic tweet topic.`;
+Based on the system prompt instructions, select the single best observation that would make the most strategic tweet topic. OUTPUT ONLY THE EXACT TEXT OF THE CHOSEN OBSERVATION WITH NO MODIFICATIONS OR ADDITIONS.`;
 
     console.log("Calling Gemini API...");
     
