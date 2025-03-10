@@ -109,8 +109,8 @@ Now focus on the top 2-3 observations after applying the above adjustments. Base
 - Do NOT add any introduction, explanation, reasoning, or conclusion
 - Do NOT add phrases like "I've selected" or "The best observation is"
 - Do NOT add any additional thoughts or commentary
-- Simply output the exact text of the chosen observation, preserving its original format (including the Observation number, Summary, and Why It's Relevant sections)
-- Your entire response should ONLY be the verbatim text of the selected observation, nothing more and nothing less`;
+- Simply output the exact text of the chosen observation, preserving its original format (however remove the word Observation, and the Observation number, but preserve the Summary, and Why It's Relevant sections EXACTLY as is in your output)
+- Your entire response should ONLY be the EXACT Summary and Why It's Relevant sections text of the selected observation, nothing more and nothing less`;
 
     const userInput = `Recent Tweet History:
 ${recentTweetHistory}
