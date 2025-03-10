@@ -237,7 +237,7 @@ async function callSonarDeepResearch(query, apiKey) {
         "Accept": "application/json"
       },
       body: JSON.stringify({
-        model: "sonar-pro",
+        model: "sonar-deep-research",
         messages: [{ role: "user", content: query }],
         max_tokens: 1000
       })
