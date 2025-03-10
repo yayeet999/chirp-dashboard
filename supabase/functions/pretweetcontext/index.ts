@@ -200,11 +200,12 @@ async function processVectorSearch(text, apiKey, vectorUrl, vectorToken) {
     const vectorResult = await vectorResponse.json();
     console.log("Vector search full response:", JSON.stringify(vectorResult));
     
-    if (vectorResult.matches && vectorResult.matches.length > 0) {
-      console.log(`Found ${vectorResult.matches.length} matches`);
+    // FIX: Check for 'result' property instead of 'matches'
+    if (vectorResult.result && vectorResult.result.length > 0) {
+      console.log(`Found ${vectorResult.result.length} matches`);
       
-      // Return matches if found
-      return vectorResult.matches.map((match) => ({
+      // Return matches if found - map the result format to our expected format
+      return vectorResult.result.map((match) => ({
         text: match.metadata?.text || "No text available",
         source: match.metadata?.source || "Unknown source",
         type: match.metadata?.type || "Unknown type",
