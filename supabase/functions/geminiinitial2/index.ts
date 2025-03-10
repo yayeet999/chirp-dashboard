@@ -176,6 +176,30 @@ Based on the system prompt instructions, select the single best observation that
     
     console.log("Gemini observation saved to tweetgenerationflow table");
     
+    // Automatically trigger the pretweetcontext function after updating geminiobservation
+    console.log("Automatically triggering pretweetcontext function...");
+    try {
+      const pretweetResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/pretweetcontext`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+        },
+        body: JSON.stringify({ recordId: recordId })
+      });
+      
+      if (!pretweetResponse.ok) {
+        const errorText = await pretweetResponse.text();
+        console.error("Error automatically triggering pretweetcontext:", errorText);
+        // We log the error but don't throw, as we want to return the Gemini result regardless
+      } else {
+        console.log("Pretweetcontext function automatically triggered successfully");
+      }
+    } catch (autoTriggerError) {
+      console.error("Failed to automatically trigger pretweetcontext:", autoTriggerError);
+      // We log the error but don't throw, as we want to return the Gemini result regardless
+    }
+    
     // Return the top observation and recordId in the response
     return new Response(
       JSON.stringify({ 

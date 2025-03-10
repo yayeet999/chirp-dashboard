@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Bot, Users, MessageCircle, FileText, User, Hash, BookOpen, ArrowUpRight, Database, Clock, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,7 +42,6 @@ const FirasGptPage: React.FC = () => {
   const [currentGroup, setCurrentGroup] = useState<string>("");
   const [centralTime, setCentralTime] = useState<string>("");
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [analysisResult, setAnalysisResult] = useState<string>("");
   const [analysisRecordId, setAnalysisRecordId] = useState<string | null>(null);
   const [geminiObservation, setGeminiObservation] = useState<string>("");
@@ -54,23 +52,19 @@ const FirasGptPage: React.FC = () => {
   useEffect(() => {
     const determineActiveGroup = () => {
       const now = new Date();
-      // Adjust to Central Time (UTC-6)
       const centralTimeOffset = -6 * 60; // -6 hours in minutes
       const centralTimeMinutes = now.getUTCHours() * 60 + now.getUTCMinutes() + centralTimeOffset;
-      // Convert back to hours and minutes, handling day boundaries
+      
       let hours = Math.floor(centralTimeMinutes / 60);
       if (hours < 0) hours += 24;
       if (hours >= 24) hours -= 24;
       
       const minutes = centralTimeMinutes % 60 < 0 ? centralTimeMinutes % 60 + 60 : centralTimeMinutes % 60;
       
-      // Format the time as HH:MM
       const formattedHours = hours.toString().padStart(2, '0');
       const formattedMinutes = Math.abs(minutes).toString().padStart(2, '0');
       setCentralTime(`${formattedHours}:${formattedMinutes} CT`);
       
-      // Determine which group is active based on the time windows
-      // Each group has its own dedicated time window
       if (hours >= 5 && hours < 7) {
         setCurrentGroup("Group A (6am CT)");
       } else if (hours >= 10 && hours < 12) {
@@ -89,6 +83,58 @@ const FirasGptPage: React.FC = () => {
     
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const checkForContextData = async () => {
+      if (analysisRecordId && geminiObservation) {
+        try {
+          setTimeout(async () => {
+            const { data: updatedRecord, error: fetchError } = await supabase
+              .from('tweetgenerationflow')
+              .select('vectorcontext, sonardeepresearch')
+              .eq('id', analysisRecordId)
+              .single();
+              
+            if (fetchError) {
+              console.error("Error fetching context data:", fetchError);
+              return;
+            }
+            
+            if (updatedRecord) {
+              try {
+                if (updatedRecord.vectorcontext) {
+                  const parsedVectorContext = JSON.parse(updatedRecord.vectorcontext);
+                  setVectorContext(parsedVectorContext);
+                  
+                  toast({
+                    title: "Vector Context Available",
+                    description: "Vector search results have been loaded",
+                    variant: "default"
+                  });
+                }
+                
+                if (updatedRecord.sonardeepresearch) {
+                  setSonarResearch(updatedRecord.sonardeepresearch);
+                  
+                  toast({
+                    title: "Research Complete",
+                    description: "Sonar deep research has been loaded",
+                    variant: "default"
+                  });
+                }
+              } catch (parseError) {
+                console.error("Error parsing context data:", parseError);
+              }
+            }
+          }, 10000); // Check after 10 seconds to allow processing time
+        } catch (error) {
+          console.error("Failed to check for context data:", error);
+        }
+      }
+    };
+    
+    checkForContextData();
+  }, [geminiObservation, analysisRecordId, toast]);
 
   const runDeepAnalysis = async () => {
     setIsAnalyzing(true);
@@ -116,7 +162,6 @@ const FirasGptPage: React.FC = () => {
         if (data.recordId) {
           setAnalysisRecordId(data.recordId);
           
-          // After a brief delay, check for Gemini observation
           setTimeout(async () => {
             try {
               const { data: recordData, error: recordError } = await supabase
@@ -162,80 +207,6 @@ const FirasGptPage: React.FC = () => {
     }
   };
 
-  const runPreTweetContext = async () => {
-    if (!analysisRecordId) {
-      toast({
-        title: "Processing Failed",
-        description: "No analysis record available. Please run deep analysis first.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsProcessing(true);
-    setVectorContext([]);
-    setSonarResearch("");
-    
-    try {
-      // Invoke the pretweetcontext function with the record ID
-      const { data, error } = await supabase.functions.invoke('pretweetcontext', {
-        body: { recordId: analysisRecordId }
-      });
-      
-      if (error) {
-        console.error("Error running pretweetcontext:", error);
-        toast({
-          title: "Processing Failed",
-          description: error.message || "Failed to run pretweetcontext",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      toast({
-        title: "Processing Complete",
-        description: "Context enrichment completed successfully",
-        variant: "default"
-      });
-      
-      // Fetch the updated record with vector context and sonar research
-      const { data: updatedRecord, error: fetchError } = await supabase
-        .from('tweetgenerationflow')
-        .select('vectorcontext, sonardeepresearch')
-        .eq('id', analysisRecordId)
-        .single();
-        
-      if (fetchError) {
-        console.error("Error fetching updated context:", fetchError);
-        return;
-      }
-      
-      if (updatedRecord) {
-        try {
-          if (updatedRecord.vectorcontext) {
-            const parsedVectorContext = JSON.parse(updatedRecord.vectorcontext);
-            setVectorContext(parsedVectorContext);
-          }
-          
-          if (updatedRecord.sonardeepresearch) {
-            setSonarResearch(updatedRecord.sonardeepresearch);
-          }
-        } catch (parseError) {
-          console.error("Error parsing context data:", parseError);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to run pretweetcontext:", error);
-      toast({
-        title: "Processing Failed",
-        description: "An unexpected error occurred",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between mb-6">
@@ -253,7 +224,6 @@ const FirasGptPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Current Status */}
       <Card className="glass-card border-primary/20">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -280,7 +250,6 @@ const FirasGptPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Tweet Analysis Tools */}
       <Card className="glass-card border-primary/20">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -302,14 +271,6 @@ const FirasGptPage: React.FC = () => {
                 className="w-full md:w-auto"
               >
                 {isAnalyzing ? "Analyzing..." : "Run Deep Analysis"} 
-              </Button>
-              
-              <Button 
-                onClick={runPreTweetContext} 
-                disabled={isProcessing || !analysisRecordId || !geminiObservation}
-                className="w-full md:w-auto"
-              >
-                {isProcessing ? "Processing..." : "Enrich Context"} 
               </Button>
             </div>
             
@@ -359,9 +320,7 @@ const FirasGptPage: React.FC = () => {
                       </div>
                     ) : (
                       <div className="text-sm text-muted-foreground">
-                        {isProcessing ? 
-                          "Processing vector context..." : 
-                          "No vector context available. Please run the context enrichment."}
+                        "Vector context will be automatically loaded after Gemini analysis completes."
                       </div>
                     )}
                   </TabsContent>
@@ -371,9 +330,7 @@ const FirasGptPage: React.FC = () => {
                       <div className="whitespace-pre-wrap text-sm">{sonarResearch}</div>
                     ) : (
                       <div className="text-sm text-muted-foreground">
-                        {isProcessing ? 
-                          "Processing Sonar Deep Research..." : 
-                          "No Sonar research available. Please run the context enrichment."}
+                        "Sonar research will be automatically loaded after Gemini analysis completes."
                       </div>
                     )}
                   </TabsContent>
@@ -384,7 +341,6 @@ const FirasGptPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Featured Content Section */}
       <Card className="glass-card border-primary/20">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -402,7 +358,6 @@ const FirasGptPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Data Source Metrics - User Timeline Data */}
       <Card className="glass-card">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -426,7 +381,6 @@ const FirasGptPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Vector Database Input Section */}
       <VectorInput />
     </div>
   );
