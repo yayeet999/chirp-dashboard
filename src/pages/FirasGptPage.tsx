@@ -43,9 +43,12 @@ const FirasGptPage: React.FC = () => {
   const [currentGroup, setCurrentGroup] = useState<string>("");
   const [centralTime, setCentralTime] = useState<string>("");
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [analysisResult, setAnalysisResult] = useState<string>("");
   const [analysisRecordId, setAnalysisRecordId] = useState<string | null>(null);
   const [geminiObservation, setGeminiObservation] = useState<string>("");
+  const [vectorContext, setVectorContext] = useState<any[]>([]);
+  const [sonarResearch, setSonarResearch] = useState<string>("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -92,6 +95,8 @@ const FirasGptPage: React.FC = () => {
     setAnalysisResult("");
     setAnalysisRecordId(null);
     setGeminiObservation("");
+    setVectorContext([]);
+    setSonarResearch("");
     
     try {
       const { data, error } = await supabase.functions.invoke('deep_initialanalyzer');
@@ -154,6 +159,80 @@ const FirasGptPage: React.FC = () => {
       });
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const runPreTweetContext = async () => {
+    if (!analysisRecordId) {
+      toast({
+        title: "Processing Failed",
+        description: "No analysis record available. Please run deep analysis first.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsProcessing(true);
+    setVectorContext([]);
+    setSonarResearch("");
+    
+    try {
+      // Invoke the pretweetcontext function with the record ID
+      const { data, error } = await supabase.functions.invoke('pretweetcontext', {
+        body: { recordId: analysisRecordId }
+      });
+      
+      if (error) {
+        console.error("Error running pretweetcontext:", error);
+        toast({
+          title: "Processing Failed",
+          description: error.message || "Failed to run pretweetcontext",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      toast({
+        title: "Processing Complete",
+        description: "Context enrichment completed successfully",
+        variant: "default"
+      });
+      
+      // Fetch the updated record with vector context and sonar research
+      const { data: updatedRecord, error: fetchError } = await supabase
+        .from('tweetgenerationflow')
+        .select('vectorcontext, sonardeepresearch')
+        .eq('id', analysisRecordId)
+        .single();
+        
+      if (fetchError) {
+        console.error("Error fetching updated context:", fetchError);
+        return;
+      }
+      
+      if (updatedRecord) {
+        try {
+          if (updatedRecord.vectorcontext) {
+            const parsedVectorContext = JSON.parse(updatedRecord.vectorcontext);
+            setVectorContext(parsedVectorContext);
+          }
+          
+          if (updatedRecord.sonardeepresearch) {
+            setSonarResearch(updatedRecord.sonardeepresearch);
+          }
+        } catch (parseError) {
+          console.error("Error parsing context data:", parseError);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to run pretweetcontext:", error);
+      toast({
+        title: "Processing Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -224,14 +303,24 @@ const FirasGptPage: React.FC = () => {
               >
                 {isAnalyzing ? "Analyzing..." : "Run Deep Analysis"} 
               </Button>
+              
+              <Button 
+                onClick={runPreTweetContext} 
+                disabled={isProcessing || !analysisRecordId || !geminiObservation}
+                className="w-full md:w-auto"
+              >
+                {isProcessing ? "Processing..." : "Enrich Context"} 
+              </Button>
             </div>
             
             {analysisResult && (
               <div className="mt-4">
                 <Tabs defaultValue="deepseek" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="deepseek">DeepSeek Analysis</TabsTrigger>
                     <TabsTrigger value="gemini">Gemini Top Pick</TabsTrigger>
+                    <TabsTrigger value="vectorcontext" disabled={vectorContext.length === 0}>Vector Context</TabsTrigger>
+                    <TabsTrigger value="sonarresearch" disabled={!sonarResearch}>Sonar Research</TabsTrigger>
                   </TabsList>
                   <TabsContent value="deepseek" className="p-4 bg-secondary/10 rounded-lg mt-2">
                     <div className="flex justify-between items-start mb-2">
@@ -251,6 +340,40 @@ const FirasGptPage: React.FC = () => {
                         {isAnalyzing ? 
                           "Waiting for Gemini analysis to complete..." : 
                           "No Gemini observation available yet. Please wait or run the analysis again."}
+                      </div>
+                    )}
+                  </TabsContent>
+                  <TabsContent value="vectorcontext" className="p-4 bg-secondary/10 rounded-lg mt-2">
+                    <h3 className="text-sm font-medium mb-2">Vector Search Results</h3>
+                    {vectorContext.length > 0 ? (
+                      <div className="space-y-4">
+                        {vectorContext.map((item, index) => (
+                          <div key={index} className="p-3 bg-background/80 rounded border border-border">
+                            <div className="flex justify-between mb-1">
+                              <span className="text-xs font-medium">Source: {item.source}</span>
+                              <span className="text-xs text-muted-foreground">Relevance: {(item.score * 100).toFixed(1)}%</span>
+                            </div>
+                            <p className="text-sm">{item.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">
+                        {isProcessing ? 
+                          "Processing vector context..." : 
+                          "No vector context available. Please run the context enrichment."}
+                      </div>
+                    )}
+                  </TabsContent>
+                  <TabsContent value="sonarresearch" className="p-4 bg-secondary/10 rounded-lg mt-2">
+                    <h3 className="text-sm font-medium mb-2">Perplexity Sonar Deep Research</h3>
+                    {sonarResearch ? (
+                      <div className="whitespace-pre-wrap text-sm">{sonarResearch}</div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">
+                        {isProcessing ? 
+                          "Processing Sonar Deep Research..." : 
+                          "No Sonar research available. Please run the context enrichment."}
                       </div>
                     )}
                   </TabsContent>

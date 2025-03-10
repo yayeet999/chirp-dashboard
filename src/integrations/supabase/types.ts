@@ -81,18 +81,24 @@ export type Database = {
           deepinitial: string | null
           geminiobservation: string | null
           id: string
+          sonardeepresearch: string | null
+          vectorcontext: string | null
         }
         Insert: {
           created_at?: string
           deepinitial?: string | null
           geminiobservation?: string | null
           id?: string
+          sonardeepresearch?: string | null
+          vectorcontext?: string | null
         }
         Update: {
           created_at?: string
           deepinitial?: string | null
           geminiobservation?: string | null
           id?: string
+          sonardeepresearch?: string | null
+          vectorcontext?: string | null
         }
         Relationships: []
       }
