@@ -129,7 +129,10 @@ serve(async (req) => {
 // Function to create embedding and perform vector search
 async function processVectorSearch(text: string, apiKey: string, vectorUrl: string, vectorToken: string) {
   console.log("Creating embedding for vector search...");
-  console.log("Input text length for embedding:", text.length);
+  
+  // Clean the input text - remove markdown formatting
+  const cleanText = text.replace(/[#*_]/g, '');
+  console.log("Input text length for embedding after cleaning:", cleanText.length);
   
   try {
     // Generate embedding from OpenAI
@@ -140,7 +143,7 @@ async function processVectorSearch(text: string, apiKey: string, vectorUrl: stri
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        input: text,
+        input: cleanText,
         model: "text-embedding-ada-002" // OpenAI embedding model
       }),
     });
@@ -156,106 +159,109 @@ async function processVectorSearch(text: string, apiKey: string, vectorUrl: stri
     
     console.log("Successfully generated embedding, vector dimension:", embedding.length);
     
-    // Perform vector search using Upstash Vector
-    console.log("Performing vector search in Upstash...");
+    // Define a cascade of thresholds to try
+    const thresholdCascade = [0.60, 0.50, 0.40, 0];
     
-    // Set a score threshold to ensure we only get meaningful matches
-    const scoreThreshold = 0.75; // Lower this value to get more matches (0.65-0.75 is a good range)
-    const topK = 5; // Increase from 4 to 5 to get more potential matches
-    
-    const vectorRequestBody = {
-      index: "firasgptknowledge",
-      vector: embedding,
-      topK: topK,
-      includeMetadata: true,
-      includeVectors: false,
-      scoreThreshold: scoreThreshold
-    };
-    
-    console.log("Vector search request:", JSON.stringify(vectorRequestBody, null, 2));
-    
-    const vectorResponse = await fetch(`${vectorUrl}/query`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${vectorToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(vectorRequestBody),
-    });
-
-    if (!vectorResponse.ok) {
-      const error = await vectorResponse.text();
-      console.error("Upstash Vector API error:", error);
-      throw new Error("Failed to perform vector search");
-    }
-
-    const vectorResult = await vectorResponse.json();
-    console.log("Vector search response status:", vectorResponse.status);
-    console.log("Vector search response summary:", 
-      JSON.stringify({
-        matches_count: vectorResult.matches?.length || 0,
-        hasMatches: !!vectorResult.matches,
-        isArray: Array.isArray(vectorResult.matches)
-      })
-    );
-    
-    if (vectorResult.matches && vectorResult.matches.length > 0) {
-      // Log the first match to understand what we're getting back
-      console.log("First match example:", JSON.stringify(vectorResult.matches[0], null, 2));
-    } else {
-      console.log("No matches found in vector search results with score threshold:", scoreThreshold);
-      // Try without a threshold to see if that's the issue
-      console.log("Attempting vector search without score threshold...");
+    // Perform vector search with cascading thresholds
+    for (const scoreThreshold of thresholdCascade) {
+      console.log(`Trying vector search with threshold: ${scoreThreshold}`);
       
-      // Create a new request without the score threshold
-      const vectorRequestBodyNoThreshold = {
+      const vectorRequestBody = {
         index: "firasgptknowledge",
         vector: embedding,
-        topK: topK,
+        topK: 10, // Increased to get more potential matches
         includeMetadata: true,
-        includeVectors: false
+        includeVectors: false,
+        filter: scoreThreshold > 0 ? { metadata: { $exists: { text: true } } } : undefined,
+        scoreThreshold: scoreThreshold || undefined
       };
       
-      const vectorResponseNoThreshold = await fetch(`${vectorUrl}/query`, {
+      console.log("Vector search request:", JSON.stringify(vectorRequestBody));
+      
+      const vectorResponse = await fetch(`${vectorUrl}/query`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${vectorToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(vectorRequestBodyNoThreshold),
+        body: JSON.stringify(vectorRequestBody),
       });
-      
-      if (vectorResponseNoThreshold.ok) {
-        const vectorResultNoThreshold = await vectorResponseNoThreshold.json();
-        console.log("Vector search (no threshold) returned matches:", 
-          vectorResultNoThreshold.matches?.length || 0
-        );
-        
-        if (vectorResultNoThreshold.matches && vectorResultNoThreshold.matches.length > 0) {
-          console.log("Matches found without threshold - using these instead");
-          // Return these results instead
-          return vectorResultNoThreshold.matches.map((match: any) => ({
-            text: match.metadata?.text || "No text available",
-            source: match.metadata?.source || "Unknown source",
-            type: match.metadata?.type || "Unknown type",
-            score: match.score
-          }));
-        }
+
+      if (!vectorResponse.ok) {
+        const error = await vectorResponse.text();
+        console.error("Upstash Vector API error:", error);
+        throw new Error("Failed to perform vector search");
       }
+
+      const vectorResult = await vectorResponse.json();
+      console.log("Vector search response with full details:", JSON.stringify(vectorResult));
+      
+      if (vectorResult.matches && vectorResult.matches.length > 0) {
+        console.log(`Found ${vectorResult.matches.length} matches with threshold ${scoreThreshold}`);
+        
+        // Log the first match to understand what we're getting back
+        if (vectorResult.matches[0]) {
+          console.log("First match example:", JSON.stringify(vectorResult.matches[0]));
+          console.log("First match score:", vectorResult.matches[0].score);
+          console.log("First match metadata:", JSON.stringify(vectorResult.matches[0].metadata));
+        }
+        
+        // Return matches if found
+        return vectorResult.matches.map((match) => ({
+          text: match.metadata?.text || "No text available",
+          source: match.metadata?.source || "Unknown source",
+          type: match.metadata?.type || "Unknown type",
+          score: match.score
+        }));
+      }
+      
+      console.log(`No matches found with threshold ${scoreThreshold}, trying next threshold...`);
     }
     
-    // Fix: Handle the case where matches might be undefined
-    if (!vectorResult.matches || !Array.isArray(vectorResult.matches)) {
-      console.log("No matches found in vector search results or invalid format");
-      return [];  // Return empty array if no matches
+    // If we get here, we tried all thresholds and found no matches
+    console.log("No matches found across all thresholds. Trying without filter...");
+    
+    // Try once more without any filter or threshold
+    const vectorRequestBodyFinal = {
+      index: "firasgptknowledge",
+      vector: embedding,
+      topK: 10,
+      includeMetadata: true,
+      includeVectors: false
+    };
+    
+    console.log("Final vector search request with no filters:", JSON.stringify(vectorRequestBodyFinal));
+    
+    const vectorResponseFinal = await fetch(`${vectorUrl}/query`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${vectorToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(vectorRequestBodyFinal),
+    });
+    
+    if (!vectorResponseFinal.ok) {
+      const error = await vectorResponseFinal.text();
+      console.error("Final upstash Vector API error:", error);
+      return [];
     }
     
-    return vectorResult.matches.map((match: any) => ({
-      text: match.metadata?.text || "No text available",
-      source: match.metadata?.source || "Unknown source",
-      type: match.metadata?.type || "Unknown type",
-      score: match.score
-    }));
+    const vectorResultFinal = await vectorResponseFinal.json();
+    console.log("Final vector search response:", JSON.stringify(vectorResultFinal));
+    
+    if (vectorResultFinal.matches && vectorResultFinal.matches.length > 0) {
+      console.log(`Found ${vectorResultFinal.matches.length} matches in final attempt`);
+      return vectorResultFinal.matches.map((match) => ({
+        text: match.metadata?.text || "No text available",
+        source: match.metadata?.source || "Unknown source",
+        type: match.metadata?.type || "Unknown type",
+        score: match.score
+      }));
+    }
+    
+    console.log("No matches found in vector search after all attempts");
+    return [];
   } catch (error) {
     console.error("Error in processVectorSearch:", error);
     // Return empty array rather than failing the whole function
