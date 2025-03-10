@@ -119,12 +119,12 @@ async function callFactCheckResearch(reportContent, apiKey) {
   
   const url = "https://api.perplexity.ai/chat/completions";
   
-  const systemInstruction = `Act as an expert meticulous fact-checker researcher. You will be given a research report, process the report as follows:
-1. REMOVE the entire <think>...text...</think> section at the beginning of the provided research report (delete without analysis)
-2. Thoroughly verify and fact-check the entire remaining research report using reputable sources
+  const systemInstruction = `Act as an expert meticulous fact-checker researcher. You will be given a length research text in addition to these instructions, process the research text as follows:
+1. REMOVE the entire <think>...text...</think> section at the beginning of the provided research text (delete without analysis)
+2. Thoroughly verify and fact-check the entire remaining research text using reputable sources OUTPUT ONLY THE UPDATED AND CORRECTED VERSION OF THE EXACT RESEARCH TEXT YOU WERE GIVEN.
 3. Cross-check data, claims, metrics, and statistics with primary sources
 4. Correct or remove any statements, claims, or data points determined to be false or inaccurate
-5. Output ONLY the updated and correct version of the research report. IF no corrections or updates are needed after your thorough verification, simply output the original report exactly as is minus the removed <think> section. Do not include extra comments or statements`;
+5. OUTPUT ONLY THE UPDATED AND CORRECTED VERSION OF THE EXACT RESEARCH TEXT YOU WERE GIVEN. IF no corrections or updates are needed after your thorough verification, simply output the original research text you were given exactly as you were given, minus the removed <think> section. Do not include extra comments or statements`;
 
   try {
     console.log("Sending request to Perplexity API...");
