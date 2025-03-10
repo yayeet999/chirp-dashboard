@@ -106,13 +106,46 @@ serve(async (req) => {
     console.log("Vector context and Sonar deep research saved to tweetgenerationflow table");
     console.log(`Vector matches found: ${vectorContextResult.length}`);
     
+    // Trigger the sonarfactchecker function in the background
+    const factCheckTrigger = async () => {
+      try {
+        console.log("Triggering sonarfactchecker function for fact checking...");
+        
+        // Wait a few seconds to ensure the data is properly saved to the database
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Call the sonarfactchecker function
+        const factCheckResponse = await fetch(`${supabaseUrl}/functions/v1/sonarfactchecker`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ recordId })
+        });
+        
+        if (!factCheckResponse.ok) {
+          const errorText = await factCheckResponse.text();
+          console.error(`Error triggering fact check: ${factCheckResponse.status} - ${errorText}`);
+        } else {
+          console.log("Fact checking successfully triggered");
+        }
+      } catch (error) {
+        console.error("Failed to trigger fact checking:", error);
+      }
+    };
+    
+    // Fire off the fact check trigger without awaiting (using Deno's EdgeRuntime.waitUntil)
+    EdgeRuntime.waitUntil(factCheckTrigger());
+    
     // Return success response
     return new Response(
       JSON.stringify({ 
         success: true, 
         recordId: recordId,
         message: "Vector context and Sonar deep research successfully processed",
-        vectorMatchCount: vectorContextResult.length
+        vectorMatchCount: vectorContextResult.length,
+        factCheckInitiated: true
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
