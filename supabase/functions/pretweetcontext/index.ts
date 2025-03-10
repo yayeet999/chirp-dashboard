@@ -176,6 +176,12 @@ async function processVectorSearch(text: string, apiKey: string, vectorUrl: stri
   console.log(`Retrieved ${vectorResult.matches?.length || 0} vector matches`);
   
   // Extract relevant information from vector search results
+  // Fix: Handle the case where matches might be undefined
+  if (!vectorResult.matches || !Array.isArray(vectorResult.matches)) {
+    console.log("No matches found in vector search results or invalid format");
+    return [];  // Return empty array if no matches
+  }
+  
   return vectorResult.matches.map((match: any) => ({
     text: match.metadata?.text || "No text available",
     source: match.metadata?.source || "Unknown source",
