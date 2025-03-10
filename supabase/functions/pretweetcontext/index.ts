@@ -323,6 +323,8 @@ async function callSonarDeepResearch(query, apiKey) {
   
   try {
     console.log("Sending request to Perplexity API...");
+    console.log("Query length:", query.length);
+    console.log("Query first 100 chars:", query.substring(0, 100));
     
     const response = await fetch(url, {
       method: "POST",
@@ -334,7 +336,8 @@ async function callSonarDeepResearch(query, apiKey) {
       body: JSON.stringify({
         model: "sonar-deep-research",
         messages: [{ role: "user", content: query }],
-        max_tokens: 2000
+        max_tokens: 2000,
+        temperature: 0.3
       })
     });
     
@@ -356,6 +359,7 @@ async function callSonarDeepResearch(query, apiKey) {
     // Extract the actual response content
     const researchContent = data.choices[0].message.content;
     console.log("Research content length:", researchContent.length);
+    console.log("Research content first 100 chars:", researchContent.substring(0, 100));
     
     return researchContent;
   } catch (error) {

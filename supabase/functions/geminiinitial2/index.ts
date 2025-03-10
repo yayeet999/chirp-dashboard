@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -8,8 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-Deno.serve(async (req) => {
-  // Handle CORS preflight requests
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -19,17 +17,14 @@ Deno.serve(async (req) => {
   const supabaseAnonKey = environmentVariables.SUPABASE_ANON_KEY || '';
   const geminiApiKey = environmentVariables.GEMINI_API_KEY || '';
   
-  // Initialize Supabase client
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
   
   try {
     console.log("Starting Gemini analysis based on deepinitial observations...");
     
-    // Get the record ID from the request body if provided
     const requestData = await req.json().catch(() => ({}));
     let recordId = requestData.recordId;
     
-    // If no record ID is provided, fetch the most recent tweetgenerationflow entry
     if (!recordId) {
       const { data: latestRecord, error: fetchError } = await supabase
         .from('tweetgenerationflow')
@@ -48,7 +43,6 @@ Deno.serve(async (req) => {
       
       recordId = latestRecord[0].id;
       
-      // Ensure we have deepinitial data
       if (!latestRecord[0].deepinitial) {
         throw new Error("Latest record has no deepinitial analysis data");
       }
@@ -58,12 +52,11 @@ Deno.serve(async (req) => {
       console.log(`Using provided tweetgenerationflow record: ${recordId}`);
     }
     
-    // Fetch the specific tweetgenerationflow record
     const { data: record, error: recordError } = await supabase
       .from('tweetgenerationflow')
       .select('deepinitial')
       .eq('id', recordId)
-      .single();
+      .maybeSingle();
     
     if (recordError) {
       console.error(`Error fetching tweetgenerationflow record ${recordId}:`, recordError);
@@ -76,10 +69,8 @@ Deno.serve(async (req) => {
     
     console.log("Found deepinitial analysis. Preparing for Gemini API call...");
     
-    // Placeholder for tweet history (will be implemented later)
     const recentTweetHistory = "[Placeholder: No recent tweet history available yet]";
     
-    // Prepare the prompt for Gemini
     const systemPrompt = `Your goal is to narrow down to the top observation choice from a list of 5-8 candidates to guide tweet ideation for an AI news/content focused account. Follow these steps to prioritize strategic balance over raw scores:  
 
 **1. Topic Repetition Filter**  
@@ -122,7 +113,6 @@ Based on the system prompt instructions, select the single best observation that
 
     console.log("Calling Gemini API...");
     
-    // Call Gemini API
     const geminiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent";
     const url = `${geminiEndpoint}?key=${geminiApiKey}`;
     
@@ -158,11 +148,9 @@ Based on the system prompt instructions, select the single best observation that
     const geminiResult = await geminiResponse.json();
     console.log("Gemini API response received");
     
-    // Extract the top observation from Gemini's response
     const topObservation = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text || 
                         "No observation selected by Gemini API";
     
-    // Update the tweetgenerationflow record with the Gemini result
     const { data: updateData, error: updateError } = await supabase
       .from('tweetgenerationflow')
       .update({ geminiobservation: topObservation })
@@ -176,14 +164,13 @@ Based on the system prompt instructions, select the single best observation that
     
     console.log("Gemini observation saved to tweetgenerationflow table");
     
-    // Automatically trigger the pretweetcontext function after updating geminiobservation
     console.log("Automatically triggering pretweetcontext function...");
     try {
-      const pretweetResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/pretweetcontext`, {
+      const pretweetResponse = await fetch(`${supabaseUrl}/functions/v1/pretweetcontext`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+          "Authorization": `Bearer ${supabaseAnonKey}`,
         },
         body: JSON.stringify({ recordId: recordId })
       });
@@ -191,16 +178,13 @@ Based on the system prompt instructions, select the single best observation that
       if (!pretweetResponse.ok) {
         const errorText = await pretweetResponse.text();
         console.error("Error automatically triggering pretweetcontext:", errorText);
-        // We log the error but don't throw, as we want to return the Gemini result regardless
       } else {
         console.log("Pretweetcontext function automatically triggered successfully");
       }
     } catch (autoTriggerError) {
       console.error("Failed to automatically trigger pretweetcontext:", autoTriggerError);
-      // We log the error but don't throw, as we want to return the Gemini result regardless
     }
     
-    // Return the top observation and recordId in the response
     return new Response(
       JSON.stringify({ 
         success: true, 
