@@ -82,7 +82,6 @@ export type Database = {
           geminiobservation: string | null
           id: string
           sonardeepresearch: string | null
-          sonarfactchecked: string | null
           vectorcontext: string | null
         }
         Insert: {
@@ -91,7 +90,6 @@ export type Database = {
           geminiobservation?: string | null
           id?: string
           sonardeepresearch?: string | null
-          sonarfactchecked?: string | null
           vectorcontext?: string | null
         }
         Update: {
@@ -100,7 +98,6 @@ export type Database = {
           geminiobservation?: string | null
           id?: string
           sonardeepresearch?: string | null
-          sonarfactchecked?: string | null
           vectorcontext?: string | null
         }
         Relationships: []

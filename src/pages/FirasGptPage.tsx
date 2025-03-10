@@ -47,7 +47,6 @@ const FirasGptPage: React.FC = () => {
   const [geminiObservation, setGeminiObservation] = useState<string>("");
   const [vectorContext, setVectorContext] = useState<any[]>([]);
   const [sonarResearch, setSonarResearch] = useState<string>("");
-  const [sonarFactChecked, setSonarFactChecked] = useState<string>("");
   const [isProcessingContext, setIsProcessingContext] = useState<boolean>(false);
   const { toast } = useToast();
 
@@ -93,7 +92,7 @@ const FirasGptPage: React.FC = () => {
           setTimeout(async () => {
             const { data: updatedRecord, error: fetchError } = await supabase
               .from('tweetgenerationflow')
-              .select('vectorcontext, sonardeepresearch, sonarfactchecked')
+              .select('vectorcontext, sonardeepresearch')
               .eq('id', analysisRecordId)
               .single();
               
@@ -121,16 +120,6 @@ const FirasGptPage: React.FC = () => {
                   toast({
                     title: "Research Complete",
                     description: "Sonar deep research has been loaded",
-                    variant: "default"
-                  });
-                }
-
-                if (updatedRecord.sonarfactchecked) {
-                  setSonarFactChecked(updatedRecord.sonarfactchecked);
-                  
-                  toast({
-                    title: "Fact Checking Complete",
-                    description: "Research has been fact-checked",
                     variant: "default"
                   });
                 }
@@ -232,7 +221,6 @@ const FirasGptPage: React.FC = () => {
     setIsProcessingContext(true);
     setVectorContext([]);
     setSonarResearch("");
-    setSonarFactChecked("");
 
     try {
       toast({
@@ -272,7 +260,7 @@ const FirasGptPage: React.FC = () => {
           
           const { data: updatedRecord, error: fetchError } = await supabase
             .from('tweetgenerationflow')
-            .select('vectorcontext, sonardeepresearch, sonarfactchecked')
+            .select('vectorcontext, sonardeepresearch')
             .eq('id', analysisRecordId)
             .single();
             
@@ -312,22 +300,8 @@ const FirasGptPage: React.FC = () => {
                 });
               }
               
-              if (updatedRecord.sonarfactchecked) {
-                console.log("Fetched fact-checked research (first 100 chars):", 
-                  updatedRecord.sonarfactchecked.substring(0, 100));
-                setSonarFactChecked(updatedRecord.sonarfactchecked);
-                dataUpdated = true;
-                
-                toast({
-                  title: "Fact Checking Complete",
-                  description: "Research has been fact-checked",
-                  variant: "default"
-                });
-              }
-              
-              if (dataUpdated && updatedRecord.vectorcontext && updatedRecord.sonardeepresearch && updatedRecord.sonarfactchecked) {
+              if (dataUpdated) {
                 clearInterval(pollInterval);
-                setIsProcessingContext(false);
               }
             } catch (parseError) {
               console.error("Error parsing context data:", parseError);
@@ -336,7 +310,7 @@ const FirasGptPage: React.FC = () => {
           }
         }, 3000); // Check every 3 seconds
         
-        // Clear interval after 60 seconds to avoid infinite polling (increased from 30 to account for fact checking)
+        // Clear interval after 30 seconds to avoid infinite polling
         setTimeout(() => {
           clearInterval(pollInterval);
           
@@ -349,7 +323,7 @@ const FirasGptPage: React.FC = () => {
           }
           
           setIsProcessingContext(false);
-        }, 60000);
+        }, 30000);
       }
     } catch (error) {
       console.error("Failed to process context:", error);
@@ -446,12 +420,11 @@ const FirasGptPage: React.FC = () => {
             {analysisResult && (
               <div className="mt-4">
                 <Tabs defaultValue="deepseek" className="w-full">
-                  <TabsList className="grid w-full grid-cols-5">
+                  <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="deepseek">DeepSeek Analysis</TabsTrigger>
                     <TabsTrigger value="gemini">Gemini Top Pick</TabsTrigger>
                     <TabsTrigger value="vectorcontext" disabled={vectorContext.length === 0}>Vector Context</TabsTrigger>
                     <TabsTrigger value="sonarresearch" disabled={!sonarResearch}>Sonar Research</TabsTrigger>
-                    <TabsTrigger value="sonarfactchecked" disabled={!sonarFactChecked}>Fact Checked</TabsTrigger>
                   </TabsList>
                   <TabsContent value="deepseek" className="p-4 bg-secondary/10 rounded-lg mt-2">
                     <div className="flex justify-between items-start mb-2">
@@ -501,16 +474,6 @@ const FirasGptPage: React.FC = () => {
                     ) : (
                       <div className="text-sm text-muted-foreground">
                         "Sonar research will be automatically loaded after Gemini analysis completes."
-                      </div>
-                    )}
-                  </TabsContent>
-                  <TabsContent value="sonarfactchecked" className="p-4 bg-secondary/10 rounded-lg mt-2">
-                    <h3 className="text-sm font-medium mb-2">Fact-Checked Research</h3>
-                    {sonarFactChecked ? (
-                      <div className="whitespace-pre-wrap text-sm">{sonarFactChecked}</div>
-                    ) : (
-                      <div className="text-sm text-muted-foreground">
-                        "Fact-checked research will be automatically loaded after the research is complete."
                       </div>
                     )}
                   </TabsContent>
@@ -567,3 +530,4 @@ const FirasGptPage: React.FC = () => {
 };
 
 export default FirasGptPage;
+
