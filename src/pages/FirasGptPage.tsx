@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Bot, Users, MessageCircle, FileText, User, Hash, BookOpen, ArrowUpRight, Database, Clock, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -157,13 +158,14 @@ const FirasGptPage: React.FC = () => {
     setSonarResearch("");
     
     try {
-      const { data, error } = await supabase.functions.invoke('deep_initialanalyzer');
+      // Updated to use the new gem_initialanalyzer function
+      const { data, error } = await supabase.functions.invoke('gem_initialanalyzer');
       
       if (error) {
-        console.error("Error running deep analysis:", error);
+        console.error("Error running gem analysis:", error);
         toast({
           title: "Analysis Failed",
-          description: error.message || "Failed to run deep analysis",
+          description: error.message || "Failed to run gem analysis",
           variant: "destructive"
         });
         return;
@@ -203,12 +205,12 @@ const FirasGptPage: React.FC = () => {
         
         toast({
           title: "Analysis Complete",
-          description: "Deep analysis completed successfully",
+          description: "Gem analysis completed successfully",
           variant: "default"
         });
       }
     } catch (error) {
-      console.error("Failed to run deep analysis:", error);
+      console.error("Failed to run gem analysis:", error);
       toast({
         title: "Analysis Failed",
         description: "An unexpected error occurred",
