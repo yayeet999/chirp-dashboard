@@ -159,7 +159,7 @@ async function processVectorSearch(text, apiKey, vectorUrl, vectorToken) {
     const basicRequestBody = {
       "index": "firasgptknowledge",
       "vector": embedding,
-      "topK": 10,
+      "topK": 7,
       "includeMetadata": true
     };
     
