@@ -40,25 +40,35 @@ serve(async (req) => {
       .from('tweetgenerationflow')
       .select('sonardeepresearch')
       .eq('id', recordId)
-      .single();
+      .maybeSingle();
     
     if (fetchError) {
       console.error(`Error fetching record ${recordId}:`, fetchError);
-      throw new Error(`Failed to fetch record ${recordId}`);
+      throw new Error(`Failed to fetch record ${recordId}: ${fetchError.message}`);
     }
     
-    if (!record || !record.sonardeepresearch) {
+    if (!record) {
+      throw new Error(`Record ${recordId} not found`);
+    }
+    
+    if (!record.sonardeepresearch) {
       throw new Error(`Record ${recordId} has no sonardeepresearch data to fact check`);
     }
     
     const researchContent = record.sonardeepresearch;
     console.log("Found research content. Starting fact checking...");
+    console.log("Research content length:", researchContent.length);
     console.log("Research content (first 200 chars):", researchContent.substring(0, 200));
     
     // Call the fact check research function
     const factCheckedContent = await callFactCheckResearch(researchContent, perplexityApiKey);
     
+    if (!factCheckedContent) {
+      throw new Error("Fact checking returned empty content");
+    }
+    
     console.log("Fact checking complete. Saving results to database...");
+    console.log("Fact checked content length:", factCheckedContent.length);
     console.log("Fact checked content (first 200 chars):", factCheckedContent.substring(0, 200));
     
     // Save the fact-checked content back to the database
@@ -67,15 +77,14 @@ serve(async (req) => {
       .update({
         sonarfactchecked: factCheckedContent
       })
-      .eq('id', recordId)
-      .select();
+      .eq('id', recordId);
       
     if (updateError) {
       console.error("Error updating record with fact-checked content:", updateError);
-      throw new Error("Failed to save fact-checked content to database");
+      throw new Error(`Failed to save fact-checked content to database: ${updateError.message}`);
     }
     
-    console.log("Fact-checked content saved to database");
+    console.log("Fact-checked content saved to database successfully");
     
     // Return success response
     return new Response(
@@ -96,9 +105,18 @@ serve(async (req) => {
   }
 });
 
-// Implement the fact checking function as provided by the user
+// Implement the fact checking function
 async function callFactCheckResearch(reportContent, apiKey) {
   console.log("Initiating Fact-Check Research...");
+  
+  if (!apiKey) {
+    throw new Error("Perplexity API key is missing");
+  }
+  
+  if (!reportContent || reportContent.trim() === '') {
+    throw new Error("No content provided for fact-checking");
+  }
+  
   const url = "https://api.perplexity.ai/chat/completions";
   
   const systemInstruction = `Act as an expert meticulous fact-checker researcher. You will be given a research report, process the report as follows:
@@ -109,6 +127,8 @@ async function callFactCheckResearch(reportContent, apiKey) {
 5. Output ONLY the updated and correct version of the research report. IF no corrections or updates are needed after your thorough verification, simply output the original report exactly as is minus the removed <think> section. Do not include extra comments or statements`;
 
   try {
+    console.log("Sending request to Perplexity API...");
+    
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -130,13 +150,20 @@ async function callFactCheckResearch(reportContent, apiKey) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Perplexity API Error: ${response.status} - ${errorText}`);
-      throw new Error(`Perplexity API returned ${response.status}`);
+      throw new Error(`Perplexity API returned ${response.status}: ${errorText}`);
     }
     
+    console.log("Received response from Perplexity API");
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || "Error processing document";
+    
+    if (!data.choices || data.choices.length === 0 || !data.choices[0].message || !data.choices[0].message.content) {
+      console.error("Invalid response format from Perplexity API:", JSON.stringify(data));
+      throw new Error("Invalid response format from Perplexity API");
+    }
+    
+    return data.choices[0].message.content;
   } catch (error) {
     console.error(`FactCheck Error: ${error.message}`);
-    return `Verification failed: ${error.message}`;
+    throw new Error(`Verification failed: ${error.message}`);
   }
 }
