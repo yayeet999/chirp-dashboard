@@ -140,7 +140,7 @@ async function callFactCheckResearch(reportContent, apiKey) {
   // Prepare the system instructions to be included in the user message
   const systemInstructionText = `Act as an expert meticulous fact-checker researcher. Process the following research text as follows:
 1. REMOVE the entire <think>...text...</think> section at the beginning of the provided research text (delete without analysis)
-2. Thoroughly verify and fact-check the entire remaining research text using reputable sources by performing a comprehensive web search across many different reputable relevant domains
+2. Thoroughly verify and fact-check the entire remaining research text using reputable sources by performing a comprehensive web search across many different reputable relevant domains. Please ignore the included sources in the research text, perform your own comprehensive web search and thorough analysis to confirm/fact-check each stated statisitc/fact/claim in the research text WITHOUT relying on the included mentioned sources.
 3. Cross-check data, claims, metrics, and statistics with primary sources
 4. CORRECT OR REMOVE ANY STATEMENT, CLAIMS, OR DATA POINTS DETERMINE TO BE FACTUALLY FALSE OR INACCURATE
 5. HOWEVER LEAVE FACTUALLY CORRECT SECTIONS AND TEXT UNAFFECTED AND UNEDITED
