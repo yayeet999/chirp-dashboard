@@ -60,7 +60,7 @@ serve(async (req) => {
     console.log("Research content length:", researchContent.length);
     console.log("Research content (first 200 chars):", researchContent.substring(0, 200));
     
-    // Call the fact check research function
+    // Call the fact check research function with simplified API structure
     const factCheckedContent = await callFactCheckResearch(researchContent, perplexityApiKey);
     
     if (!factCheckedContent) {
@@ -105,7 +105,7 @@ serve(async (req) => {
   }
 });
 
-// Implement the fact checking function
+// Updated fact checking function with simplified API structure
 async function callFactCheckResearch(reportContent, apiKey) {
   console.log("Initiating Fact-Check Research...");
   
@@ -119,12 +119,16 @@ async function callFactCheckResearch(reportContent, apiKey) {
   
   const url = "https://api.perplexity.ai/chat/completions";
   
-  const systemInstruction = `Act as an expert meticulous fact-checker researcher. You will be given a length research text in addition to these instructions, process the research text as follows:
+  // Combine system instruction and content into a single user message
+  const systemInstruction = `Act as an expert meticulous fact-checker researcher. Process the following research text as follows:
 1. REMOVE the entire <think>...text...</think> section at the beginning of the provided research text (delete without analysis)
 2. Thoroughly verify and fact-check the entire remaining research text using reputable sources OUTPUT ONLY THE UPDATED AND CORRECTED VERSION OF THE EXACT RESEARCH TEXT YOU WERE GIVEN.
 3. Cross-check data, claims, metrics, and statistics with primary sources
 4. Correct or remove any statements, claims, or data points determined to be false or inaccurate
-5. OUTPUT ONLY THE UPDATED AND CORRECTED VERSION OF THE EXACT RESEARCH TEXT YOU WERE GIVEN. IF no corrections or updates are needed after your thorough verification, simply output the original research text you were given exactly as you were given, minus the removed <think> section. Do not include extra comments or statements`;
+5. OUTPUT ONLY THE UPDATED AND CORRECTED VERSION OF THE EXACT RESEARCH TEXT YOU WERE GIVEN. IF no corrections or updates are needed after your thorough verification, simply output the original research text you were given exactly as you were given, minus the removed <think> section. Do not include extra comments or statements
+
+Here is the text to process:
+${reportContent}`;
 
   try {
     console.log("Sending request to Perplexity API...");
@@ -139,8 +143,7 @@ async function callFactCheckResearch(reportContent, apiKey) {
       body: JSON.stringify({
         model: "sonar-deep-research",
         messages: [
-          { role: "system", content: systemInstruction },
-          { role: "user", content: reportContent }
+          { role: "user", content: systemInstruction }
         ],
         max_tokens: 2600,
         temperature: 0.2
