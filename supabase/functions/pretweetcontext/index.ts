@@ -126,13 +126,9 @@ serve(async (req) => {
   }
 });
 
-// Function to create embedding and perform vector search
-async function processVectorSearch(text: string, apiKey: string, vectorUrl: string, vectorToken: string) {
-  console.log("Creating embedding for vector search...");
-  
-  // Use the input text as is - no cleaning needed
-  const cleanText = text;
-  console.log("Input text length for embedding:", cleanText.length);
+// Function to create embedding and perform vector search with ultra-simplified approach
+async function processVectorSearch(text, apiKey, vectorUrl, vectorToken) {
+  console.log("Creating embedding for ultra-simplified vector search...");
   
   try {
     // Generate embedding from OpenAI
@@ -143,8 +139,8 @@ async function processVectorSearch(text: string, apiKey: string, vectorUrl: stri
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        input: cleanText,
-        model: "text-embedding-ada-002" // OpenAI embedding model
+        input: text,
+        model: "text-embedding-ada-002"
       }),
     });
 
@@ -159,90 +155,75 @@ async function processVectorSearch(text: string, apiKey: string, vectorUrl: stri
     
     console.log("Successfully generated embedding, vector dimension:", embedding.length);
     
-    // Simplified approach - first try with absolutely minimal query
-    console.log("Trying simplified vector search with minimal parameters");
+    // Most basic query possible - just vector and topK
+    const basicRequestBody = {
+      "index": "firasgptknowledge",
+      "vector": embedding,
+      "topK": 10,
+      "includeMetadata": true
+    };
     
-    try {
-      const finalRequestBody = {
-        "index": "firasgptknowledge",
-        "vector": embedding,
-        "topK": 10,
-        "includeMetadata": true
-      };
+    console.log("Sending most basic vector search possible:", JSON.stringify(basicRequestBody));
+    
+    const vectorResponse = await fetch(`${vectorUrl}/query`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${vectorToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(basicRequestBody),
+    });
+    
+    if (!vectorResponse.ok) {
+      const errorText = await vectorResponse.text();
+      console.error("Upstash Vector API error:", errorText);
       
-      console.log("Vector search request:", JSON.stringify(finalRequestBody));
-      
-      const vectorResponse = await fetch(`${vectorUrl}/query`, {
-        method: 'POST',
+      // Try listing all indices to see what's available
+      console.log("Checking available indices");
+      const listResponse = await fetch(`${vectorUrl}/list-indices`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${vectorToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(finalRequestBody),
+          'Authorization': `Bearer ${vectorToken}`
+        }
       });
       
-      if (!vectorResponse.ok) {
-        const errorText = await vectorResponse.text();
-        console.error("Upstash Vector API error:", errorText);
-        throw new Error("Failed to perform vector search");
+      if (listResponse.ok) {
+        const indices = await listResponse.json();
+        console.log("Available indices:", JSON.stringify(indices));
+      } else {
+        console.error("Could not list indices:", await listResponse.text());
       }
       
-      const vectorResult = await vectorResponse.json();
-      console.log("Vector search response status:", vectorResult.status || "No status");
-      
-      if (vectorResult.matches && vectorResult.matches.length > 0) {
-        console.log(`Found ${vectorResult.matches.length} matches`);
-        
-        // Log the first match to understand what we're getting back
-        if (vectorResult.matches[0]) {
-          console.log("First match example - score:", vectorResult.matches[0].score);
-          console.log("First match metadata keys:", Object.keys(vectorResult.matches[0].metadata || {}));
-        }
-        
-        // Return matches if found
-        return vectorResult.matches.map((match: any) => ({
-          text: match.metadata?.text || "No text available",
-          source: match.metadata?.source || "Unknown source",
-          type: match.metadata?.type || "Unknown type",
-          score: match.score
-        }));
-      }
-      
-      console.log("No matches found in vector search");
-      
-      // For debugging - check what data we actually have in the index
-      console.log("Checking index info to verify it contains data");
-      try {
-        const infoResponse = await fetch(`${vectorUrl}/info?index=firasgptknowledge`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${vectorToken}`
-          }
-        });
-        
-        if (infoResponse.ok) {
-          const infoData = await infoResponse.json();
-          console.log("Index info:", JSON.stringify(infoData));
-        } else {
-          console.error("Could not get index info:", await infoResponse.text());
-        }
-      } catch (infoError) {
-        console.error("Error checking index info:", infoError);
-      }
-    } catch (error) {
-      console.error("Error in vector search:", error);
       throw new Error("Failed to perform vector search");
     }
     
+    const vectorResult = await vectorResponse.json();
+    console.log("Vector search full response:", JSON.stringify(vectorResult));
+    
+    if (vectorResult.matches && vectorResult.matches.length > 0) {
+      console.log(`Found ${vectorResult.matches.length} matches`);
+      
+      // Return matches if found
+      return vectorResult.matches.map((match) => ({
+        text: match.metadata?.text || "No text available",
+        source: match.metadata?.source || "Unknown source",
+        type: match.metadata?.type || "Unknown type",
+        score: match.score
+      }));
+    }
+    
+    console.log("No matches found in vector search");
     return [];
+    
   } catch (error) {
     console.error("Error in processVectorSearch:", error);
-    throw error; // Propagate the error to properly handle it 
+    // Return empty result instead of throwing to maintain function resilience
+    return [];
   }
 }
 
 // Function to call Perplexity Sonar Deep Research API
-async function callSonarDeepResearch(query: string, apiKey: string) {
+async function callSonarDeepResearch(query, apiKey) {
   console.log("Calling Perplexity Sonar Deep Research...");
   const url = "https://api.perplexity.ai/chat/completions";
   
@@ -275,6 +256,6 @@ async function callSonarDeepResearch(query: string, apiKey: string) {
     return researchContent;
   } catch (error) {
     console.error(`Error calling Perplexity API: ${error.message}`);
-    throw error;
+    return `Error retrieving research: ${error.message}`;
   }
 }

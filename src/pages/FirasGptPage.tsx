@@ -223,6 +223,14 @@ const FirasGptPage: React.FC = () => {
     setSonarResearch("");
 
     try {
+      toast({
+        title: "Processing Context",
+        description: "Sending request to process context data...",
+        variant: "default"
+      });
+      
+      console.log("Sending request to process context with recordId:", analysisRecordId);
+      
       const { data, error } = await supabase.functions.invoke('pretweetcontext', {
         body: { recordId: analysisRecordId }
       });
@@ -237,6 +245,8 @@ const FirasGptPage: React.FC = () => {
         return;
       }
 
+      console.log("Context processing response:", data);
+
       if (data?.success) {
         toast({
           title: "Context Processing Started",
@@ -244,7 +254,10 @@ const FirasGptPage: React.FC = () => {
           variant: "default"
         });
 
-        setTimeout(async () => {
+        // Poll for results
+        const pollInterval = setInterval(async () => {
+          console.log("Polling for context data...");
+          
           const { data: updatedRecord, error: fetchError } = await supabase
             .from('tweetgenerationflow')
             .select('vectorcontext, sonardeepresearch')
@@ -253,24 +266,32 @@ const FirasGptPage: React.FC = () => {
             
           if (fetchError) {
             console.error("Error fetching context data:", fetchError);
+            clearInterval(pollInterval);
             return;
           }
+          
+          let dataUpdated = false;
           
           if (updatedRecord) {
             try {
               if (updatedRecord.vectorcontext) {
                 const parsedVectorContext = JSON.parse(updatedRecord.vectorcontext);
+                console.log("Fetched vector context:", parsedVectorContext);
                 setVectorContext(parsedVectorContext);
+                dataUpdated = true;
                 
                 toast({
                   title: "Vector Context Available",
-                  description: "Vector search results have been loaded",
+                  description: `${parsedVectorContext.length} vector matches found`,
                   variant: "default"
                 });
               }
               
               if (updatedRecord.sonardeepresearch) {
+                console.log("Fetched sonar research (first 100 chars):", 
+                  updatedRecord.sonardeepresearch.substring(0, 100));
                 setSonarResearch(updatedRecord.sonardeepresearch);
+                dataUpdated = true;
                 
                 toast({
                   title: "Research Complete",
@@ -278,11 +299,31 @@ const FirasGptPage: React.FC = () => {
                   variant: "default"
                 });
               }
+              
+              if (dataUpdated) {
+                clearInterval(pollInterval);
+              }
             } catch (parseError) {
               console.error("Error parsing context data:", parseError);
+              clearInterval(pollInterval);
             }
           }
-        }, 5000);
+        }, 3000); // Check every 3 seconds
+        
+        // Clear interval after 30 seconds to avoid infinite polling
+        setTimeout(() => {
+          clearInterval(pollInterval);
+          
+          if (vectorContext.length === 0) {
+            toast({
+              title: "Vector Search Timeout",
+              description: "No vector matches were found within the time limit",
+              variant: "destructive"
+            });
+          }
+          
+          setIsProcessingContext(false);
+        }, 30000);
       }
     } catch (error) {
       console.error("Failed to process context:", error);
@@ -291,7 +332,6 @@ const FirasGptPage: React.FC = () => {
         description: "An unexpected error occurred",
         variant: "destructive"
       });
-    } finally {
       setIsProcessingContext(false);
     }
   };
@@ -365,10 +405,15 @@ const FirasGptPage: React.FC = () => {
               <Button 
                 onClick={processVectorAndResearch} 
                 disabled={isProcessingContext || !geminiObservation}
-                variant="outline"
-                className="w-full md:w-auto"
+                variant={isProcessingContext ? "secondary" : "outline"}
+                className="w-full md:w-auto relative"
               >
-                {isProcessingContext ? "Processing..." : "Process Context Data"} 
+                {isProcessingContext ? (
+                  <>
+                    <span className="animate-pulse">Processing Context...</span>
+                    <span className="absolute top-0 right-0 h-3 w-3 rounded-full bg-blue-500 animate-ping"></span>
+                  </>
+                ) : "Process Context Data"} 
               </Button>
             </div>
             
@@ -485,3 +530,4 @@ const FirasGptPage: React.FC = () => {
 };
 
 export default FirasGptPage;
+
