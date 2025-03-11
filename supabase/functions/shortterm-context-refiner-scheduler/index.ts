@@ -1,7 +1,6 @@
 
 // Short-term Context Refiner Scheduler
 // This edge function checks if both unrefined contexts are ready, then triggers the refiners
-// It also checks if there are records with cleanedsonar but no pretweet1, and triggers pretweet1
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -25,39 +24,6 @@ Deno.serve(async (req) => {
   
   try {
     console.log("Starting refiner scheduler check...");
-    
-    // Check for any tweetgenerationflow records with cleanedsonar but no pretweet1
-    const { data: pendingPretweet, error: pretweet1Error } = await supabase
-      .from('tweetgenerationflow')
-      .select('id')
-      .not('cleanedsonar', 'is', null)
-      .is('pretweet1', null)
-      .order('created_at', { ascending: false })
-      .limit(1);
-    
-    if (pretweet1Error) {
-      console.error("Error checking for pending pretweet1 records:", pretweet1Error);
-    } else if (pendingPretweet && pendingPretweet.length > 0) {
-      console.log(`Found record ${pendingPretweet[0].id} with cleanedsonar but no pretweet1, triggering pretweet1 function...`);
-      
-      try {
-        // Call the pretweet1 function
-        const pretweet1Response = await supabase.functions.invoke('pretweet1', {
-          method: 'POST',
-          body: { recordId: pendingPretweet[0].id }
-        });
-        
-        if (pretweet1Response.error) {
-          console.error("Error calling pretweet1 function:", pretweet1Response.error);
-        } else {
-          console.log("pretweet1 function called successfully:", pretweet1Response.data);
-        }
-      } catch (error) {
-        console.error("Error invoking pretweet1 function:", error);
-      }
-    } else {
-      console.log("No records found with cleanedsonar but missing pretweet1");
-    }
     
     // Get the latest unrefined record to check if both contexts are available
     const { data: latestUnrefined, error: getError } = await supabase
@@ -96,8 +62,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           message: "Both contexts are not ready yet",
           context1_ready: !!unrefined.shortterm_context1_unrefined,
-          context2_ready: !!unrefined.shortterm_context2_unrefined,
-          pretweet1_triggered: pendingPretweet && pendingPretweet.length > 0
+          context2_ready: !!unrefined.shortterm_context2_unrefined
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
@@ -139,8 +104,7 @@ Deno.serve(async (req) => {
         success: true, 
         message: "Refiner functions triggered",
         refiner1_status: status.refiner1,
-        refiner2_status: status.refiner2,
-        pretweet1_triggered: pendingPretweet && pendingPretweet.length > 0
+        refiner2_status: status.refiner2
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
