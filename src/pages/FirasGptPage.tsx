@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Bot, Users, MessageCircle, FileText, User, Hash, Clock, Sparkles } from "lucide-react";
+import { Bot, Users, MessageCircle, FileText, User, Hash, Clock, Sparkles, Layers } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/dashboard/StatusBadge";
@@ -41,6 +41,7 @@ const FirasGptPage: React.FC = () => {
   const [currentGroup, setCurrentGroup] = useState<string>("");
   const [centralTime, setCentralTime] = useState<string>("");
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [analysisResult, setAnalysisResult] = useState<string>("");
   const [analysisRecordId, setAnalysisRecordId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -134,6 +135,51 @@ const FirasGptPage: React.FC = () => {
     }
   };
 
+  const runPretweet1 = async () => {
+    if (!analysisRecordId) {
+      toast({
+        title: "No Record ID",
+        description: "Please run the deep analysis first to get a record ID",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsProcessing(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('pretweet1', {
+        body: { recordId: analysisRecordId }
+      });
+      
+      if (error) {
+        console.error("Error running pretweet1:", error);
+        toast({
+          title: "Social Media Analysis Failed",
+          description: error.message || "Failed to run social media analysis",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      toast({
+        title: "Social Media Analysis Complete",
+        description: "Content has been analyzed for social media angles and approaches",
+        variant: "default"
+      });
+      
+    } catch (error) {
+      console.error("Failed to run pretweet1:", error);
+      toast({
+        title: "Social Media Analysis Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between mb-6">
@@ -198,6 +244,16 @@ const FirasGptPage: React.FC = () => {
                 className="w-full md:w-auto"
               >
                 {isAnalyzing ? "Analyzing..." : "Run Deep Analysis"} 
+              </Button>
+              
+              <Button 
+                onClick={runPretweet1} 
+                disabled={isProcessing || !analysisRecordId}
+                variant="outline"
+                className="w-full md:w-auto"
+              >
+                <Layers className="h-4 w-4 mr-2" />
+                {isProcessing ? "Processing..." : "Run Content Analysis"}
               </Button>
             </div>
             
