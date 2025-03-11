@@ -152,6 +152,36 @@ serve(async (req) => {
           }
         }
         
+        console.log(`Embeddings created successfully for record ${recordId}`);
+        
+        // STEP 4: Call pretweet1 function to generate content angles
+        console.log("Step 4: Calling pretweet1 function to generate content angles");
+        try {
+          const pretweet1Response = await fetch(
+            'https://exqqpgsbpveeffpbxmdq.supabase.co/functions/v1/pretweet1',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseAnonKey}`
+              },
+              body: JSON.stringify({ recordId })
+            }
+          );
+          
+          if (!pretweet1Response.ok) {
+            const errorText = await pretweet1Response.text();
+            console.error(`Error calling pretweet1 function: ${pretweet1Response.status} - ${errorText}`);
+            throw new Error(`Failed to call pretweet1 function: ${pretweet1Response.status}`);
+          }
+          
+          const pretweet1Result = await pretweet1Response.json();
+          console.log("pretweet1 function completed successfully:", pretweet1Result);
+        } catch (pretweet1Error) {
+          console.error("Error calling pretweet1 function:", pretweet1Error);
+          // Continue the workflow even if pretweet1 fails
+        }
+        
         console.log(`Background task completed: Full workflow completed successfully for record ${recordId}`);
       } catch (error) {
         console.error("Background task error: Processing failed:", error);
