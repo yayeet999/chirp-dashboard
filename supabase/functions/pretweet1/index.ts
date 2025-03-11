@@ -167,7 +167,7 @@ Deliver your analysis in a structured format that clearly separates each angle, 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "o3-mini",
+          model: "gpt-4o-mini",  // Changed from o3-mini to gpt-4o-mini
           messages: [
             { role: "system", content: systemPrompt },
             { 
@@ -196,7 +196,7 @@ Please structure your analysis according to the instructions and provide clear, 
             }
           ],
           temperature: 0.2,
-          max_tokens: 10000
+          max_tokens: 4096  // Reduced from 10000 to be within limits
         }),
       });
       
