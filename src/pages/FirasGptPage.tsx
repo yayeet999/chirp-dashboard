@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Bot, Users, MessageCircle, FileText, User, Hash, BookOpen, ArrowUpRight, Database, Clock, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +48,7 @@ const FirasGptPage: React.FC = () => {
   const [vectorContext, setVectorContext] = useState<any[]>([]);
   const [sonarResearch, setSonarResearch] = useState<string>("");
   const [sonarFactChecked, setSonarFactChecked] = useState<string>("");
+  const [cleanedSonar, setCleanedSonar] = useState<string>("");
   const [isProcessingContext, setIsProcessingContext] = useState<boolean>(false);
   const { toast } = useToast();
 
@@ -94,7 +94,7 @@ const FirasGptPage: React.FC = () => {
           setTimeout(async () => {
             const { data: updatedRecord, error: fetchError } = await supabase
               .from('tweetgenerationflow')
-              .select('vectorcontext, sonardeepresearch, sonarfactchecked')
+              .select('vectorcontext, sonardeepresearch, sonarfactchecked, cleanedsonar')
               .eq('id', analysisRecordId)
               .single();
               
@@ -135,6 +135,16 @@ const FirasGptPage: React.FC = () => {
                     variant: "default"
                   });
                 }
+
+                if (updatedRecord.cleanedsonar) {
+                  setCleanedSonar(updatedRecord.cleanedsonar);
+                  
+                  toast({
+                    title: "Text Cleaning Complete",
+                    description: "Research has been cleaned and chunked",
+                    variant: "default"
+                  });
+                }
               } catch (parseError) {
                 console.error("Error parsing context data:", parseError);
               }
@@ -158,7 +168,6 @@ const FirasGptPage: React.FC = () => {
     setSonarResearch("");
     
     try {
-      // Updated to use the new gem_initialanalyzer function
       const { data, error } = await supabase.functions.invoke('gem_initialanalyzer');
       
       if (error) {
@@ -235,6 +244,7 @@ const FirasGptPage: React.FC = () => {
     setVectorContext([]);
     setSonarResearch("");
     setSonarFactChecked("");
+    setCleanedSonar("");
 
     try {
       toast({
@@ -268,13 +278,12 @@ const FirasGptPage: React.FC = () => {
           variant: "default"
         });
 
-        // Poll for results
         const pollInterval = setInterval(async () => {
           console.log("Polling for context data...");
           
           const { data: updatedRecord, error: fetchError } = await supabase
             .from('tweetgenerationflow')
-            .select('vectorcontext, sonardeepresearch, sonarfactchecked')
+            .select('vectorcontext, sonardeepresearch, sonarfactchecked, cleanedsonar')
             .eq('id', analysisRecordId)
             .single();
             
@@ -327,7 +336,20 @@ const FirasGptPage: React.FC = () => {
                 });
               }
               
-              if (dataUpdated && updatedRecord.vectorcontext && updatedRecord.sonardeepresearch && updatedRecord.sonarfactchecked) {
+              if (updatedRecord.cleanedsonar) {
+                console.log("Fetched cleaned research (first 100 chars):", 
+                  updatedRecord.cleanedsonar.substring(0, 100));
+                setCleanedSonar(updatedRecord.cleanedsonar);
+                dataUpdated = true;
+                
+                toast({
+                  title: "Text Cleaning Complete",
+                  description: "Research has been cleaned and chunked",
+                  variant: "default"
+                });
+              }
+              
+              if (dataUpdated && updatedRecord.vectorcontext && updatedRecord.sonardeepresearch && updatedRecord.sonarfactchecked && updatedRecord.cleanedsonar) {
                 clearInterval(pollInterval);
                 setIsProcessingContext(false);
               }
@@ -338,7 +360,6 @@ const FirasGptPage: React.FC = () => {
           }
         }, 3000); // Check every 3 seconds
         
-        // Clear interval after 60 seconds to avoid infinite polling (increased from 30 to account for fact checking)
         setTimeout(() => {
           clearInterval(pollInterval);
           
@@ -448,12 +469,13 @@ const FirasGptPage: React.FC = () => {
             {analysisResult && (
               <div className="mt-4">
                 <Tabs defaultValue="deepseek" className="w-full">
-                  <TabsList className="grid w-full grid-cols-5">
+                  <TabsList className="grid w-full grid-cols-6">
                     <TabsTrigger value="deepseek">DeepSeek Analysis</TabsTrigger>
                     <TabsTrigger value="gemini">Gemini Top Pick</TabsTrigger>
                     <TabsTrigger value="vectorcontext" disabled={vectorContext.length === 0}>Vector Context</TabsTrigger>
                     <TabsTrigger value="sonarresearch" disabled={!sonarResearch}>Sonar Research</TabsTrigger>
                     <TabsTrigger value="sonarfactchecked" disabled={!sonarFactChecked}>Fact Checked</TabsTrigger>
+                    <TabsTrigger value="cleanedsonar" disabled={!cleanedSonar}>Cleaned Text</TabsTrigger>
                   </TabsList>
                   <TabsContent value="deepseek" className="p-4 bg-secondary/10 rounded-lg mt-2">
                     <div className="flex justify-between items-start mb-2">
@@ -513,6 +535,16 @@ const FirasGptPage: React.FC = () => {
                     ) : (
                       <div className="text-sm text-muted-foreground">
                         "Fact-checked research will be automatically loaded after the research is complete."
+                      </div>
+                    )}
+                  </TabsContent>
+                  <TabsContent value="cleanedsonar" className="p-4 bg-secondary/10 rounded-lg mt-2">
+                    <h3 className="text-sm font-medium mb-2">Cleaned Research Text</h3>
+                    {cleanedSonar ? (
+                      <div className="whitespace-pre-wrap text-sm">{cleanedSonar}</div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">
+                        "Cleaned research text will be automatically loaded after fact-checking is complete."
                       </div>
                     )}
                   </TabsContent>

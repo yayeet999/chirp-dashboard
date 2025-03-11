@@ -77,6 +77,7 @@ export type Database = {
       }
       tweetgenerationflow: {
         Row: {
+          cleanedsonar: string | null
           created_at: string
           deepinitial: string | null
           geminiobservation: string | null
@@ -86,6 +87,7 @@ export type Database = {
           vectorcontext: string | null
         }
         Insert: {
+          cleanedsonar?: string | null
           created_at?: string
           deepinitial?: string | null
           geminiobservation?: string | null
@@ -95,6 +97,7 @@ export type Database = {
           vectorcontext?: string | null
         }
         Update: {
+          cleanedsonar?: string | null
           created_at?: string
           deepinitial?: string | null
           geminiobservation?: string | null
