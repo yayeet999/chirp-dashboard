@@ -105,7 +105,7 @@ const FirasGptPage: React.FC = () => {
           setAnalysisRecordId(data.recordId);
           toast({
             title: "Analysis Complete",
-            description: "Deep analysis completed successfully.",
+            description: "Deep analysis completed successfully and full processing pipeline initiated.",
             variant: "default"
           });
         } else {

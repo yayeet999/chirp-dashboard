@@ -18,12 +18,16 @@ serve(async (req) => {
   const supabaseUrl = environmentVariables.SUPABASE_URL || '';
   const supabaseAnonKey = environmentVariables.SUPABASE_ANON_KEY || '';
   const perplexityApiKey = environmentVariables.PERPLEXITY_API_KEY || '';
+  const geminiApiKey = environmentVariables.GEMINI_API_KEY || '';
+  const openAIApiKey = environmentVariables.OPENAI_API_KEY || '';
+  const upstashVectorUrl = environmentVariables.UPSTASH_VECTOR_REST_URL || '';
+  const upstashVectorToken = environmentVariables.UPSTASH_VECTOR_REST_TOKEN || '';
   
   // Initialize Supabase client
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
   
   try {
-    console.log("Starting sonarfactchecker processing...");
+    console.log("Starting combined sonarfactchecker and gemsonarclean processing...");
     
     // Get the record ID from the request body
     const requestData = await req.json().catch(() => ({}));
@@ -33,7 +37,7 @@ serve(async (req) => {
       throw new Error("Record ID is required");
     }
     
-    console.log(`Processing fact check for record: ${recordId}`);
+    console.log(`Processing record: ${recordId}`);
     
     // Fetch the sonardeepresearch content from the database
     const { data: record, error: fetchError } = await supabase
@@ -52,21 +56,21 @@ serve(async (req) => {
     }
     
     if (!record.sonardeepresearch) {
-      throw new Error(`Record ${recordId} has no sonardeepresearch data to fact check`);
+      throw new Error(`Record ${recordId} has no sonardeepresearch data to process`);
     }
     
     const researchContent = record.sonardeepresearch;
-    console.log("Found research content. Starting fact checking...");
+    console.log("Found research content. Starting processing...");
     console.log("Research content length:", researchContent.length);
     console.log("Research content (first 200 chars):", researchContent.substring(0, 200));
     
-    // Use backgroundProcessFactCheck function for the long-running operation
-    // and return a quick response to avoid timeout
+    // Use backgroundProcessing function for the entire workflow
     const backgroundTask = async () => {
       console.log(`Background task started for record: ${recordId}`);
       
       try {
-        // Call the fact check research function with improved API structure
+        // STEP 1: Fact Check with Perplexity API
+        console.log("Step 1: Fact checking with Perplexity API");
         const factCheckedContent = await callFactCheckResearch(researchContent, perplexityApiKey);
         
         if (!factCheckedContent) {
@@ -74,26 +78,83 @@ serve(async (req) => {
           return;
         }
         
-        console.log("Fact checking complete in background task. Saving results to database...");
+        console.log("Fact checking complete. Saving results to database...");
         console.log("Fact checked content length:", factCheckedContent.length);
         console.log("Fact checked content (first 200 chars):", factCheckedContent.substring(0, 200));
         
-        // Save the fact-checked content back to the database
-        const { data: updateData, error: updateError } = await supabase
+        // Save the fact-checked content to the database
+        const { error: updateFactCheckedError } = await supabase
           .from('tweetgenerationflow')
           .update({
             sonarfactchecked: factCheckedContent
           })
           .eq('id', recordId);
           
-        if (updateError) {
-          console.error("Background task error: Error updating record with fact-checked content:", updateError);
-          return;
+        if (updateFactCheckedError) {
+          console.error("Background task error: Error updating record with fact-checked content:", updateFactCheckedError);
+          throw new Error(`Failed to update sonarfactchecked: ${updateFactCheckedError.message}`);
         }
         
-        console.log("Background task completed: Fact-checked content saved to database successfully");
+        console.log("Step 1 completed: Fact-checked content saved to database successfully");
+        
+        // STEP 2: Clean Text with Gemini API
+        console.log("Step 2: Cleaning text with Gemini API");
+        const cleanedText = await cleanTextWithGemini(factCheckedContent, geminiApiKey);
+        
+        if (!cleanedText) {
+          console.error("Background task error: Text cleaning returned empty content");
+          throw new Error("Text cleaning returned empty content");
+        }
+        
+        console.log("Text cleaning complete. Saving results to database...");
+        console.log("Cleaned text length:", cleanedText.length);
+        console.log("Cleaned text (first 200 chars):", cleanedText.substring(0, 200));
+        
+        // Save the cleaned content to the database
+        const { error: updateCleanedError } = await supabase
+          .from('tweetgenerationflow')
+          .update({
+            cleanedsonar: cleanedText
+          })
+          .eq('id', recordId);
+          
+        if (updateCleanedError) {
+          console.error("Background task error: Error updating record with cleaned text:", updateCleanedError);
+          throw new Error(`Failed to update cleanedsonar: ${updateCleanedError.message}`);
+        }
+        
+        console.log("Step 2 completed: Cleaned text saved to database successfully");
+        
+        // STEP 3: Split text into chunks and create embeddings
+        console.log("Step 3: Splitting text and creating embeddings");
+        const chunks = splitTextIntoChunks(cleanedText);
+        console.log(`Split text into ${chunks.length} chunks for embedding`);
+        
+        // Process each chunk and create embeddings
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i];
+          console.log(`Processing chunk ${i+1}/${chunks.length}, length: ${chunk.length} characters`);
+          
+          try {
+            // Generate embedding for the chunk
+            const embeddingId = await createAndStoreEmbedding(
+              chunk, 
+              `tweet-generation-${recordId}-chunk-${i+1}`, 
+              openAIApiKey,
+              upstashVectorUrl,
+              upstashVectorToken
+            );
+            
+            console.log(`Successfully created embedding for chunk ${i+1}, ID: ${embeddingId}`);
+          } catch (embeddingError) {
+            console.error(`Error creating embedding for chunk ${i+1}:`, embeddingError);
+            // Continue with other chunks even if one fails
+          }
+        }
+        
+        console.log(`Background task completed: Full workflow completed successfully for record ${recordId}`);
       } catch (error) {
-        console.error("Background task error: Fact checking process failed:", error);
+        console.error("Background task error: Processing failed:", error);
       }
     };
     
@@ -101,30 +162,30 @@ serve(async (req) => {
     // @ts-ignore - EdgeRuntime is available in Deno edge runtime but TypeScript doesn't know about it
     EdgeRuntime.waitUntil(backgroundTask());
     
-    console.log(`Initiated background fact-checking for record: ${recordId}`);
+    console.log(`Initiated background processing for record: ${recordId}`);
     
     // Return immediate success response while processing continues in background
     return new Response(
       JSON.stringify({ 
         success: true, 
         recordId: recordId,
-        message: "Fact checking initiated and will continue in the background",
+        message: "Processing initiated and will continue in the background",
         status: "processing"
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 202 }
     );
     
   } catch (error) {
-    console.error("Fact checking process failed:", error);
+    console.error("Processing failed:", error);
     return new Response(
-      JSON.stringify({ error: "Fact checking process failed", details: error.message }),
+      JSON.stringify({ error: "Processing failed", details: error.message }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
 });
 
-// Improved fact checking function using simplified API structure
-async function callFactCheckResearch(reportContent, apiKey) {
+// Function to fact check research using Perplexity API
+async function callFactCheckResearch(reportContent: string, apiKey: string): Promise<string> {
   console.log("Initiating Fact-Check Research...");
   
   if (!apiKey) {
@@ -189,6 +250,203 @@ ${reportContent}`;
     console.error(`FactCheck Error: ${error.message}`);
     throw new Error(`Verification failed: ${error.message}`);
   }
+}
+
+// Function to clean text using Gemini API
+async function cleanTextWithGemini(content: string, apiKey: string): Promise<string> {
+  console.log("Calling Gemini API for text cleaning...");
+  
+  if (!apiKey) {
+    throw new Error("Gemini API key is missing");
+  }
+  
+  if (!content || content.trim() === '') {
+    throw new Error("No content provided for text cleaning");
+  }
+  
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `Act as a text cleaner. Process the following uncleaned text as follows:
+
+1. REMOVE the entire <think>...text...</think> section at the beginning of the provided uncleaned text (delete it)
+2. Scan the entire remaining text and remove all signs of leftover citations such as [4], or [12][3] for example. Remove all these citation number brackets from the entire text without altering or removing anything else.
+3. Separate the remaining cleaned text into chunks of a minimal amount of 3 chunks and maximum amount of 8 chunks. Do not edit or alter the text, simply define where the chunks separations must happen based on reasonable semantic relevance
+
+Here is the text to process:
+${content}`
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 8192,
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Gemini API error:", errorData);
+      throw new Error(`Gemini API returned ${response.status}: ${errorData}`);
+    }
+
+    const result = await response.json();
+    const generatedText = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    
+    console.log("Received response from Gemini API");
+    console.log("Generated text length:", generatedText.length);
+    console.log("Generated text (first 200 chars):", generatedText.substring(0, 200));
+    
+    return generatedText;
+  } catch (error) {
+    console.error("Error in Gemini API processing:", error);
+    throw new Error(`Error processing with Gemini API: ${error.message}`);
+  }
+}
+
+// Function to split text into chunks
+function splitTextIntoChunks(text: string): string[] {
+  // The Gemini model should have already separated the text into chunks
+  // We'll identify chunk boundaries by looking for "Chunk X:" or similar patterns
+  
+  const chunkIdentifiers = [
+    /Chunk \d+:/i,
+    /CHUNK \d+:/i,
+    /-- Chunk \d+ --/i,
+    /\*\*Chunk \d+\*\*/i,
+    /\n\n\d+\.\s/
+  ];
+  
+  let chunks: string[] = [];
+  let chunkBoundaries: number[] = [];
+  
+  // Try to find chunk boundaries using various patterns
+  for (const pattern of chunkIdentifiers) {
+    const matches = [...text.matchAll(new RegExp(pattern, 'g'))];
+    if (matches.length >= 3) { // Minimum 3 chunks as specified
+      matches.forEach(match => {
+        if (match.index !== undefined) {
+          chunkBoundaries.push(match.index);
+        }
+      });
+      break;
+    }
+  }
+  
+  // If we found chunk boundaries
+  if (chunkBoundaries.length >= 3) {
+    for (let i = 0; i < chunkBoundaries.length; i++) {
+      const start = chunkBoundaries[i];
+      const end = i < chunkBoundaries.length - 1 ? chunkBoundaries[i + 1] : text.length;
+      
+      let chunkText = text.substring(start, end).trim();
+      
+      // Remove the chunk identifier from the beginning of the chunk
+      for (const pattern of chunkIdentifiers) {
+        chunkText = chunkText.replace(pattern, '').trim();
+      }
+      
+      chunks.push(chunkText);
+    }
+  } else {
+    // If no explicit chunk boundaries were found, split by paragraphs and then combine
+    // to get between 3 and 8 chunks of roughly equal size
+    const paragraphs = text.split(/\n\s*\n/);
+    const targetChunkCount = Math.min(Math.max(3, Math.ceil(paragraphs.length / 5)), 8);
+    const paragraphsPerChunk = Math.ceil(paragraphs.length / targetChunkCount);
+    
+    for (let i = 0; i < targetChunkCount; i++) {
+      const startIdx = i * paragraphsPerChunk;
+      const endIdx = Math.min(startIdx + paragraphsPerChunk, paragraphs.length);
+      if (startIdx < paragraphs.length) {
+        chunks.push(paragraphs.slice(startIdx, endIdx).join('\n\n'));
+      }
+    }
+  }
+  
+  console.log(`Split text into ${chunks.length} chunks`);
+  chunks.forEach((chunk, i) => {
+    console.log(`Chunk ${i+1} length: ${chunk.length}`);
+  });
+  
+  return chunks;
+}
+
+// Function to create embedding and store in vector database
+async function createAndStoreEmbedding(
+  text: string, 
+  source: string, 
+  apiKey: string, 
+  vectorUrl: string, 
+  vectorToken: string
+): Promise<string> {
+  console.log(`Creating embedding for text: ${text.substring(0, 50)}...`);
+  
+  // Generate embedding from OpenAI
+  const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      input: text,
+      model: "text-embedding-ada-002" // OpenAI embedding model
+    }),
+  });
+
+  if (!embeddingResponse.ok) {
+    const error = await embeddingResponse.json();
+    console.error("OpenAI API error:", error);
+    throw new Error("Failed to generate embedding");
+  }
+
+  const embeddingData = await embeddingResponse.json();
+  const embedding = embeddingData.data[0].embedding;
+  
+  // Generate unique ID
+  const id = crypto.randomUUID();
+  
+  // Insert into Upstash Vector
+  console.log("Inserting vector with ID:", id);
+  const vectorResponse = await fetch(`${vectorUrl}/upsert`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${vectorToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      index: "firasgptknowledge",
+      id,
+      vector: embedding,
+      metadata: {
+        text,
+        source,
+        type: "sonar_cleaned",
+        timestamp: new Date().toISOString()
+      }
+    }),
+  });
+
+  if (!vectorResponse.ok) {
+    const error = await vectorResponse.text();
+    console.error("Upstash Vector API error:", error);
+    throw new Error("Failed to insert into vector database");
+  }
+
+  return id;
 }
 
 // Listen for shutdown event to log when the function is terminated
