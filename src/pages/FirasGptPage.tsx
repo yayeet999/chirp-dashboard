@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Bot, Users, MessageCircle, FileText, User, Hash, BookOpen, ArrowUpRight, Database, Clock, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +51,8 @@ const FirasGptPage: React.FC = () => {
   const [sonarFactChecked, setSonarFactChecked] = useState<string>("");
   const [cleanedSonar, setCleanedSonar] = useState<string>("");
   const [isProcessingContext, setIsProcessingContext] = useState<boolean>(false);
+  const [isPollingData, setIsPollingData] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -87,77 +90,188 @@ const FirasGptPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const checkForContextData = async () => {
-      if (analysisRecordId && geminiObservation) {
-        try {
-          setTimeout(async () => {
-            const { data: updatedRecord, error: fetchError } = await supabase
-              .from('tweetgenerationflow')
-              .select('vectorcontext, sonardeepresearch, sonarfactchecked, cleanedsonar')
-              .eq('id', analysisRecordId)
-              .single();
-              
-            if (fetchError) {
-              console.error("Error fetching context data:", fetchError);
-              return;
-            }
-            
-            if (updatedRecord) {
-              try {
-                if (updatedRecord.vectorcontext) {
-                  const parsedVectorContext = JSON.parse(updatedRecord.vectorcontext);
-                  setVectorContext(parsedVectorContext);
-                  
-                  toast({
-                    title: "Vector Context Available",
-                    description: "Vector search results have been loaded",
-                    variant: "default"
-                  });
-                }
-                
-                if (updatedRecord.sonardeepresearch) {
-                  setSonarResearch(updatedRecord.sonardeepresearch);
-                  
-                  toast({
-                    title: "Research Complete",
-                    description: "Sonar deep research has been loaded",
-                    variant: "default"
-                  });
-                }
-
-                if (updatedRecord.sonarfactchecked) {
-                  setSonarFactChecked(updatedRecord.sonarfactchecked);
-                  
-                  toast({
-                    title: "Fact Checking Complete",
-                    description: "Research has been fact-checked",
-                    variant: "default"
-                  });
-                }
-
-                if (updatedRecord.cleanedsonar) {
-                  setCleanedSonar(updatedRecord.cleanedsonar);
-                  
-                  toast({
-                    title: "Text Cleaning Complete",
-                    description: "Research has been cleaned and chunked",
-                    variant: "default"
-                  });
-                }
-              } catch (parseError) {
-                console.error("Error parsing context data:", parseError);
-              }
-            }
-          }, 10000); // Check after 10 seconds to allow processing time
-        } catch (error) {
-          console.error("Failed to check for context data:", error);
-        }
-      }
-    };
+  // Function to poll for data updates
+  const pollForDataUpdates = async (recordId: string) => {
+    if (!recordId || isPollingData) return;
     
-    checkForContextData();
-  }, [geminiObservation, analysisRecordId, toast]);
+    setIsPollingData(true);
+    setErrorMessage(null);
+    
+    let pollCount = 0;
+    const maxPolls = 20; // Set a reasonable limit to prevent endless polling
+    const pollInterval = 3000; // Poll every 3 seconds
+    
+    const interval = setInterval(async () => {
+      pollCount++;
+      console.log(`Polling for data updates (attempt ${pollCount}/${maxPolls})...`);
+      
+      try {
+        const { data: updatedRecord, error: fetchError } = await supabase
+          .from('tweetgenerationflow')
+          .select('geminiobservation, vectorcontext, sonardeepresearch, sonarfactchecked, cleanedsonar')
+          .eq('id', recordId)
+          .maybeSingle();
+          
+        if (fetchError) {
+          console.error("Error fetching record data:", fetchError);
+          
+          // Only show toast error if this is the first poll or a new error
+          if (pollCount === 1) {
+            toast({
+              title: "Data Fetch Error",
+              description: fetchError.message,
+              variant: "destructive"
+            });
+          }
+          return;
+        }
+        
+        if (!updatedRecord) {
+          console.warn(`Record ${recordId} not found`);
+          return;
+        }
+        
+        // Track what data we've updated
+        let dataUpdated = false;
+        
+        // Handle geminiobservation
+        if (updatedRecord.geminiobservation && !geminiObservation) {
+          setGeminiObservation(updatedRecord.geminiobservation);
+          dataUpdated = true;
+          
+          toast({
+            title: "Gemini Analysis Complete",
+            description: "Gemini has selected the top observation",
+            variant: "default"
+          });
+        }
+        
+        // Handle vectorcontext
+        if (updatedRecord.vectorcontext && vectorContext.length === 0) {
+          try {
+            const parsedVectorContext = JSON.parse(updatedRecord.vectorcontext);
+            setVectorContext(parsedVectorContext);
+            dataUpdated = true;
+            
+            toast({
+              title: "Vector Context Available",
+              description: `${parsedVectorContext.length} vector matches found`,
+              variant: "default"
+            });
+          } catch (parseError) {
+            console.error("Error parsing vector context:", parseError);
+          }
+        }
+        
+        // Handle sonardeepresearch
+        if (updatedRecord.sonardeepresearch && !sonarResearch) {
+          setSonarResearch(updatedRecord.sonardeepresearch);
+          dataUpdated = true;
+          
+          toast({
+            title: "Research Complete",
+            description: "Sonar deep research has been loaded",
+            variant: "default"
+          });
+        }
+        
+        // Handle sonarfactchecked
+        if (updatedRecord.sonarfactchecked && !sonarFactChecked) {
+          setSonarFactChecked(updatedRecord.sonarfactchecked);
+          dataUpdated = true;
+          
+          toast({
+            title: "Fact Checking Complete",
+            description: "Research has been fact-checked",
+            variant: "default"
+          });
+        }
+        
+        // Handle cleanedsonar
+        if (updatedRecord.cleanedsonar && !cleanedSonar) {
+          setCleanedSonar(updatedRecord.cleanedsonar);
+          dataUpdated = true;
+          
+          toast({
+            title: "Text Cleaning Complete",
+            description: "Research has been cleaned and chunked",
+            variant: "default"
+          });
+        }
+        
+        // If we've collected all the data, or reached the maximum polls, stop polling
+        const hasAllData = 
+          updatedRecord.geminiobservation && 
+          updatedRecord.vectorcontext && 
+          updatedRecord.sonardeepresearch && 
+          updatedRecord.sonarfactchecked && 
+          updatedRecord.cleanedsonar;
+          
+        if (hasAllData || pollCount >= maxPolls) {
+          clearInterval(interval);
+          setIsPollingData(false);
+          
+          if (pollCount >= maxPolls && !hasAllData) {
+            console.warn("Reached maximum poll attempts without getting all data");
+            
+            // Show what's missing
+            const missing = [];
+            if (!updatedRecord.geminiobservation) missing.push("Gemini observation");
+            if (!updatedRecord.vectorcontext) missing.push("Vector context");
+            if (!updatedRecord.sonardeepresearch) missing.push("Research");
+            if (!updatedRecord.sonarfactchecked) missing.push("Fact check");
+            if (!updatedRecord.cleanedsonar) missing.push("Cleaned text");
+            
+            if (missing.length > 0) {
+              const missingText = missing.join(", ");
+              setErrorMessage(`Some data is still being processed: ${missingText}`);
+              
+              toast({
+                title: "Processing Timeout",
+                description: `Some data is still being processed: ${missingText}`,
+                variant: "default"
+              });
+            }
+          }
+        }
+        
+        // If any data was updated, update the UI
+        if (dataUpdated) {
+          console.log("Data updated from polling");
+        }
+      } catch (error) {
+        console.error("Error during data polling:", error);
+        clearInterval(interval);
+        setIsPollingData(false);
+        
+        toast({
+          title: "Polling Error",
+          description: error instanceof Error ? error.message : "An unknown error occurred",
+          variant: "destructive"
+        });
+      }
+    }, pollInterval);
+    
+    // Clean up the interval when component unmounts
+    return () => {
+      clearInterval(interval);
+      setIsPollingData(false);
+    };
+  };
+
+  useEffect(() => {
+    // Start polling when we get a record ID
+    if (analysisRecordId) {
+      const pollingCleanup = pollForDataUpdates(analysisRecordId);
+      
+      // Clean up polling when component unmounts
+      return () => {
+        if (typeof pollingCleanup === 'function') {
+          pollingCleanup();
+        }
+      };
+    }
+  }, [analysisRecordId]); // Only re-run if the recordId changes
 
   const runDeepAnalysis = async () => {
     setIsAnalyzing(true);
@@ -166,6 +280,9 @@ const FirasGptPage: React.FC = () => {
     setGeminiObservation("");
     setVectorContext([]);
     setSonarResearch("");
+    setSonarFactChecked("");
+    setCleanedSonar("");
+    setErrorMessage(null);
     
     try {
       const { data, error } = await supabase.functions.invoke('gem_initialanalyzer');
@@ -177,44 +294,31 @@ const FirasGptPage: React.FC = () => {
           description: error.message || "Failed to run gem analysis",
           variant: "destructive"
         });
+        setErrorMessage(`Analysis failed: ${error.message || "Unknown error"}`);
         return;
       }
       
       if (data?.analysis) {
         setAnalysisResult(data.analysis);
+        
         if (data.recordId) {
           setAnalysisRecordId(data.recordId);
-          
-          setTimeout(async () => {
-            try {
-              const { data: recordData, error: recordError } = await supabase
-                .from('tweetgenerationflow')
-                .select('geminiobservation')
-                .eq('id', data.recordId)
-                .single();
-                
-              if (recordError) {
-                console.error("Error fetching Gemini observation:", recordError);
-                return;
-              }
-              
-              if (recordData?.geminiobservation) {
-                setGeminiObservation(recordData.geminiobservation);
-                toast({
-                  title: "Gemini Analysis Complete",
-                  description: "Gemini has selected the top observation",
-                  variant: "default"
-                });
-              }
-            } catch (fetchError) {
-              console.error("Failed to fetch Gemini observation:", fetchError);
-            }
-          }, 5000); // Check after 5 seconds
+          toast({
+            title: "Analysis Complete",
+            description: "Deep analysis completed. Now waiting for Gemini processing...",
+            variant: "default"
+          });
+        } else {
+          toast({
+            title: "Analysis Incomplete",
+            description: "Analysis completed but no record ID was returned",
+            variant: "default"
+          });
         }
-        
+      } else {
         toast({
-          title: "Analysis Complete",
-          description: "Gem analysis completed successfully",
+          title: "Analysis Incomplete",
+          description: "Analysis completed but no results were returned",
           variant: "default"
         });
       }
@@ -225,6 +329,7 @@ const FirasGptPage: React.FC = () => {
         description: "An unexpected error occurred",
         variant: "destructive"
       });
+      setErrorMessage(`Analysis failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsAnalyzing(false);
     }
@@ -241,10 +346,7 @@ const FirasGptPage: React.FC = () => {
     }
 
     setIsProcessingContext(true);
-    setVectorContext([]);
-    setSonarResearch("");
-    setSonarFactChecked("");
-    setCleanedSonar("");
+    setErrorMessage(null);
 
     try {
       toast({
@@ -266,6 +368,7 @@ const FirasGptPage: React.FC = () => {
           description: error.message || "Failed to process context data",
           variant: "destructive"
         });
+        setErrorMessage(`Context processing failed: ${error.message || "Unknown error"}`);
         return;
       }
 
@@ -277,102 +380,15 @@ const FirasGptPage: React.FC = () => {
           description: `Processing started with ${data.vectorMatchCount || 0} vector matches`,
           variant: "default"
         });
-
-        const pollInterval = setInterval(async () => {
-          console.log("Polling for context data...");
-          
-          const { data: updatedRecord, error: fetchError } = await supabase
-            .from('tweetgenerationflow')
-            .select('vectorcontext, sonardeepresearch, sonarfactchecked, cleanedsonar')
-            .eq('id', analysisRecordId)
-            .single();
-            
-          if (fetchError) {
-            console.error("Error fetching context data:", fetchError);
-            clearInterval(pollInterval);
-            return;
-          }
-          
-          let dataUpdated = false;
-          
-          if (updatedRecord) {
-            try {
-              if (updatedRecord.vectorcontext) {
-                const parsedVectorContext = JSON.parse(updatedRecord.vectorcontext);
-                console.log("Fetched vector context:", parsedVectorContext);
-                setVectorContext(parsedVectorContext);
-                dataUpdated = true;
-                
-                toast({
-                  title: "Vector Context Available",
-                  description: `${parsedVectorContext.length} vector matches found`,
-                  variant: "default"
-                });
-              }
-              
-              if (updatedRecord.sonardeepresearch) {
-                console.log("Fetched sonar research (first 100 chars):", 
-                  updatedRecord.sonardeepresearch.substring(0, 100));
-                setSonarResearch(updatedRecord.sonardeepresearch);
-                dataUpdated = true;
-                
-                toast({
-                  title: "Research Complete",
-                  description: "Sonar deep research has been loaded",
-                  variant: "default"
-                });
-              }
-              
-              if (updatedRecord.sonarfactchecked) {
-                console.log("Fetched fact-checked research (first 100 chars):", 
-                  updatedRecord.sonarfactchecked.substring(0, 100));
-                setSonarFactChecked(updatedRecord.sonarfactchecked);
-                dataUpdated = true;
-                
-                toast({
-                  title: "Fact Checking Complete",
-                  description: "Research has been fact-checked",
-                  variant: "default"
-                });
-              }
-              
-              if (updatedRecord.cleanedsonar) {
-                console.log("Fetched cleaned research (first 100 chars):", 
-                  updatedRecord.cleanedsonar.substring(0, 100));
-                setCleanedSonar(updatedRecord.cleanedsonar);
-                dataUpdated = true;
-                
-                toast({
-                  title: "Text Cleaning Complete",
-                  description: "Research has been cleaned and chunked",
-                  variant: "default"
-                });
-              }
-              
-              if (dataUpdated && updatedRecord.vectorcontext && updatedRecord.sonardeepresearch && updatedRecord.sonarfactchecked && updatedRecord.cleanedsonar) {
-                clearInterval(pollInterval);
-                setIsProcessingContext(false);
-              }
-            } catch (parseError) {
-              console.error("Error parsing context data:", parseError);
-              clearInterval(pollInterval);
-            }
-          }
-        }, 3000); // Check every 3 seconds
         
-        setTimeout(() => {
-          clearInterval(pollInterval);
-          
-          if (vectorContext.length === 0) {
-            toast({
-              title: "Vector Search Timeout",
-              description: "No vector matches were found within the time limit",
-              variant: "destructive"
-            });
-          }
-          
-          setIsProcessingContext(false);
-        }, 60000);
+        // Start polling for updates
+        pollForDataUpdates(analysisRecordId);
+      } else {
+        toast({
+          title: "Context Processing Issue",
+          description: "Process started but did not return expected success message",
+          variant: "default"
+        });
       }
     } catch (error) {
       console.error("Failed to process context:", error);
@@ -381,6 +397,8 @@ const FirasGptPage: React.FC = () => {
         description: "An unexpected error occurred",
         variant: "destructive"
       });
+      setErrorMessage(`Context processing failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
       setIsProcessingContext(false);
     }
   };
@@ -445,7 +463,7 @@ const FirasGptPage: React.FC = () => {
             <div className="flex flex-col md:flex-row gap-4">
               <Button 
                 onClick={runDeepAnalysis} 
-                disabled={isAnalyzing}
+                disabled={isAnalyzing || isPollingData}
                 className="w-full md:w-auto"
               >
                 {isAnalyzing ? "Analyzing..." : "Run Deep Analysis"} 
@@ -453,7 +471,7 @@ const FirasGptPage: React.FC = () => {
               
               <Button 
                 onClick={processVectorAndResearch} 
-                disabled={isProcessingContext || !geminiObservation}
+                disabled={isProcessingContext || !geminiObservation || isPollingData}
                 variant={isProcessingContext ? "secondary" : "outline"}
                 className="w-full md:w-auto relative"
               >
@@ -464,7 +482,20 @@ const FirasGptPage: React.FC = () => {
                   </>
                 ) : "Process Context Data"} 
               </Button>
+              
+              {isPollingData && (
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse mr-2"></div>
+                  Polling for updates...
+                </div>
+              )}
             </div>
+            
+            {errorMessage && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
+                {errorMessage}
+              </div>
+            )}
             
             {analysisResult && (
               <div className="mt-4">
@@ -492,7 +523,7 @@ const FirasGptPage: React.FC = () => {
                       <div className="whitespace-pre-wrap text-sm">{geminiObservation}</div>
                     ) : (
                       <div className="text-sm text-muted-foreground">
-                        {isAnalyzing ? 
+                        {isAnalyzing || isPollingData ? 
                           "Waiting for Gemini analysis to complete..." : 
                           "No Gemini observation available yet. Please wait or run the analysis again."}
                       </div>

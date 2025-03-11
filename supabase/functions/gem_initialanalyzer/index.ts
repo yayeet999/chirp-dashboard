@@ -208,32 +208,66 @@ Deno.serve(async (req) => {
     // Get the record ID for the newly created entry
     const recordId = insertData?.[0]?.id;
     
-    // Trigger the geminiinitial2 function with the record ID
+    // Add a delay before triggering geminiinitial2 to ensure the database commit is complete
+    // This helps prevent the race condition
     if (recordId) {
-      console.log("Triggering geminiinitial2 function with record ID:", recordId);
+      console.log(`Waiting 3 seconds before triggering geminiinitial2 function with record ID: ${recordId}`);
       
-      try {
-        const geminiResponse = await fetch(`${supabaseUrl}/functions/v1/geminiinitial2`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${supabaseAnonKey}`
-          },
-          body: JSON.stringify({ recordId: recordId })
-        });
-        
-        if (!geminiResponse.ok) {
-          const geminiErrorText = await geminiResponse.text();
-          console.error("Error calling geminiinitial2:", geminiErrorText);
-          console.warn("Continuing despite geminiinitial2 error");
-        } else {
-          const geminiResult = await geminiResponse.json();
-          console.log("geminiinitial2 function completed successfully:", geminiResult);
+      // We're going to use a background task with EdgeRuntime.waitUntil 
+      // so we can return a response immediately while processing continues
+      const backgroundTask = async () => {
+        try {
+          // Wait 3 seconds to ensure the database has committed the record
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          
+          console.log(`Now triggering geminiinitial2 function with record ID: ${recordId}`);
+          
+          const geminiResponse = await fetch(`${supabaseUrl}/functions/v1/geminiinitial2`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseAnonKey}`
+            },
+            body: JSON.stringify({ recordId: recordId })
+          });
+          
+          if (!geminiResponse.ok) {
+            const geminiErrorText = await geminiResponse.text();
+            console.error(`Error calling geminiinitial2 (status ${geminiResponse.status}):`, geminiErrorText);
+            
+            // If we get a 503 error, let's retry after a delay
+            if (geminiResponse.status === 503) {
+              console.log("Received 503 error, retrying geminiinitial2 after 5 seconds...");
+              await new Promise(resolve => setTimeout(resolve, 5000));
+              
+              // Retry the request
+              const retryResponse = await fetch(`${supabaseUrl}/functions/v1/geminiinitial2`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${supabaseAnonKey}`
+                },
+                body: JSON.stringify({ recordId: recordId })
+              });
+              
+              if (!retryResponse.ok) {
+                console.error("Retry also failed, giving up:", await retryResponse.text());
+              } else {
+                console.log("Retry of geminiinitial2 succeeded!");
+              }
+            }
+          } else {
+            const geminiResult = await geminiResponse.json();
+            console.log("geminiinitial2 function completed successfully:", geminiResult);
+          }
+        } catch (geminiError) {
+          console.error("Failed to call geminiinitial2 function:", geminiError);
         }
-      } catch (geminiError) {
-        console.error("Failed to call geminiinitial2 function:", geminiError);
-        console.warn("Continuing despite geminiinitial2 error");
-      }
+      };
+      
+      // Use waitUntil to run the background task without blocking response
+      // @ts-ignore - EdgeRuntime is available in Deno Deploy but not in type definitions
+      EdgeRuntime.waitUntil(backgroundTask());
     }
     
     // Return the analysis and contextSection in the response

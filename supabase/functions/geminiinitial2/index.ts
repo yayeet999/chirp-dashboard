@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -52,19 +53,49 @@ serve(async (req) => {
       console.log(`Using provided tweetgenerationflow record: ${recordId}`);
     }
     
-    const { data: record, error: recordError } = await supabase
-      .from('tweetgenerationflow')
-      .select('deepinitial')
-      .eq('id', recordId)
-      .maybeSingle();
+    // Implement retry logic for fetching the record
+    let record = null;
+    let recordError = null;
+    let retryCount = 0;
+    const maxRetries = 3;
     
-    if (recordError) {
-      console.error(`Error fetching tweetgenerationflow record ${recordId}:`, recordError);
-      throw new Error(`Failed to fetch tweetgenerationflow record ${recordId}`);
+    while (retryCount < maxRetries) {
+      const { data, error } = await supabase
+        .from('tweetgenerationflow')
+        .select('deepinitial')
+        .eq('id', recordId)
+        .maybeSingle();
+      
+      if (error) {
+        console.error(`Error fetching tweetgenerationflow record ${recordId} (attempt ${retryCount + 1}):`, error);
+        recordError = error;
+        retryCount++;
+        
+        if (retryCount < maxRetries) {
+          // Exponential backoff: 1s, 2s, 4s, etc.
+          const backoffTime = Math.pow(2, retryCount) * 1000;
+          console.log(`Retrying in ${backoffTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, backoffTime));
+        }
+      } else if (!data || !data.deepinitial) {
+        console.warn(`Record ${recordId} not found or has no deepinitial data (attempt ${retryCount + 1})`);
+        retryCount++;
+        
+        if (retryCount < maxRetries) {
+          // Exponential backoff but with a different message
+          const backoffTime = Math.pow(2, retryCount) * 1000;
+          console.log(`Record might still be committing to database. Retrying in ${backoffTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, backoffTime));
+        }
+      } else {
+        record = data;
+        break; // Success, exit the retry loop
+      }
     }
     
+    // If we still don't have the record after all retries, throw an error
     if (!record || !record.deepinitial) {
-      throw new Error(`Record ${recordId} has no deepinitial analysis data`);
+      throw new Error(`Record ${recordId} not found or has no deepinitial analysis data after ${maxRetries} attempts. ${recordError ? `Last error: ${recordError.message}` : ''}`);
     }
     
     console.log("Found deepinitial analysis. Preparing for Gemini API call...");
@@ -131,41 +162,96 @@ Based on the system prompt instructions, select the single best observation that
       }
     };
     
-    const geminiResponse = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(geminiPayload)
-    });
+    // Implement retry logic for the Gemini API call as well
+    let geminiResult = null;
+    let geminiError = null;
+    retryCount = 0;
     
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error("Gemini API error:", errorText);
-      throw new Error(`Gemini API returned ${geminiResponse.status}: ${errorText}`);
+    while (retryCount < maxRetries) {
+      try {
+        const geminiResponse = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(geminiPayload)
+        });
+        
+        if (!geminiResponse.ok) {
+          const errorText = await geminiResponse.text();
+          console.error(`Gemini API error (attempt ${retryCount + 1}):`, errorText);
+          geminiError = `Gemini API returned ${geminiResponse.status}: ${errorText}`;
+          retryCount++;
+          
+          if (retryCount < maxRetries) {
+            const backoffTime = Math.pow(2, retryCount) * 1000;
+            console.log(`Retrying Gemini API call in ${backoffTime}ms...`);
+            await new Promise(resolve => setTimeout(resolve, backoffTime));
+          }
+        } else {
+          geminiResult = await geminiResponse.json();
+          console.log("Gemini API response received");
+          break; // Success, exit the retry loop
+        }
+      } catch (error) {
+        console.error(`Gemini API network error (attempt ${retryCount + 1}):`, error);
+        geminiError = error.message;
+        retryCount++;
+        
+        if (retryCount < maxRetries) {
+          const backoffTime = Math.pow(2, retryCount) * 1000;
+          console.log(`Retrying Gemini API call in ${backoffTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, backoffTime));
+        }
+      }
     }
     
-    const geminiResult = await geminiResponse.json();
-    console.log("Gemini API response received");
+    // If we still don't have a result after all retries, throw an error
+    if (!geminiResult) {
+      throw new Error(`Gemini API call failed after ${maxRetries} attempts. Last error: ${geminiError}`);
+    }
     
     const topObservation = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text || 
                         "No observation selected by Gemini API";
     
-    const { data: updateData, error: updateError } = await supabase
-      .from('tweetgenerationflow')
-      .update({ geminiobservation: topObservation })
-      .eq('id', recordId)
-      .select();
-      
-    if (updateError) {
-      console.error("Error updating tweetgenerationflow with Gemini observation:", updateError);
-      throw new Error("Failed to save Gemini observation to database");
+    // Implement retry logic for the database update as well
+    let updateData = null;
+    let updateError = null;
+    retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      const { data, error } = await supabase
+        .from('tweetgenerationflow')
+        .update({ geminiobservation: topObservation })
+        .eq('id', recordId)
+        .select();
+        
+      if (error) {
+        console.error(`Error updating tweetgenerationflow with Gemini observation (attempt ${retryCount + 1}):`, error);
+        updateError = error;
+        retryCount++;
+        
+        if (retryCount < maxRetries) {
+          const backoffTime = Math.pow(2, retryCount) * 1000;
+          console.log(`Retrying database update in ${backoffTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, backoffTime));
+        }
+      } else {
+        updateData = data;
+        break; // Success, exit the retry loop
+      }
     }
     
-    console.log("Gemini observation saved to tweetgenerationflow table");
+    // If we still couldn't update after all retries, log the error but continue
+    if (updateError) {
+      console.error(`Failed to save Gemini observation to database after ${maxRetries} attempts:`, updateError);
+    } else {
+      console.log("Gemini observation saved to tweetgenerationflow table");
+    }
     
     console.log("Automatically triggering pretweetcontext function...");
     try {
+      // Use a more resilient approach to call the pretweetcontext function
       const pretweetResponse = await fetch(`${supabaseUrl}/functions/v1/pretweetcontext`, {
         method: "POST",
         headers: {
@@ -173,10 +259,18 @@ Based on the system prompt instructions, select the single best observation that
           "Authorization": `Bearer ${supabaseAnonKey}`,
         },
         body: JSON.stringify({ recordId: recordId })
+      }).catch(error => {
+        console.error("Network error calling pretweetcontext:", error);
+        return { ok: false, statusText: error.message };
       });
       
       if (!pretweetResponse.ok) {
-        const errorText = await pretweetResponse.text();
+        let errorText = "Unknown error";
+        try {
+          errorText = await pretweetResponse.text();
+        } catch (e) {
+          errorText = pretweetResponse.statusText || "Failed to get error details";
+        }
         console.error("Error automatically triggering pretweetcontext:", errorText);
       } else {
         console.log("Pretweetcontext function automatically triggered successfully");
