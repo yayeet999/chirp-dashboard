@@ -169,12 +169,12 @@ Deliver your analysis in a structured format that clearly separates each angle, 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "o3-mini",
           messages: [
             { role: "system", content: systemPrompt },
             { 
               role: "user", 
-              content: `Please analyze the following content and break it down into social media angles and approaches:
+              content: `Please analyze the following content and break it down into highly nuanced and creative high quality social media angles and approaches for a potential text output:
               
 GEMINIOBSERVATION:
 ${analysisContent.geminiobservation}
@@ -192,7 +192,7 @@ Please structure your analysis according to the instructions and provide clear, 
             }
           ],
           temperature: 0.2,
-          max_tokens: 4096
+          max_completion_tokens: 15000
         }),
       });
       
