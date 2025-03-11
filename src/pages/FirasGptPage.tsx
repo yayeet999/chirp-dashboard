@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Bot, Users, MessageCircle, FileText, User, Hash, BookOpen, ArrowUpRight, Database, Clock, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -101,7 +101,7 @@ const FirasGptPage: React.FC = () => {
     const maxPolls = 20; // Set a reasonable limit to prevent endless polling
     const pollInterval = 3000; // Poll every 3 seconds
     
-    const interval = setInterval(async () => {
+    const intervalId = setInterval(async () => {
       pollCount++;
       console.log(`Polling for data updates (attempt ${pollCount}/${maxPolls})...`);
       
@@ -208,7 +208,7 @@ const FirasGptPage: React.FC = () => {
           updatedRecord.cleanedsonar;
           
         if (hasAllData || pollCount >= maxPolls) {
-          clearInterval(interval);
+          clearInterval(intervalId);
           setIsPollingData(false);
           
           if (pollCount >= maxPolls && !hasAllData) {
@@ -241,7 +241,7 @@ const FirasGptPage: React.FC = () => {
         }
       } catch (error) {
         console.error("Error during data polling:", error);
-        clearInterval(interval);
+        clearInterval(intervalId);
         setIsPollingData(false);
         
         toast({
@@ -252,9 +252,9 @@ const FirasGptPage: React.FC = () => {
       }
     }, pollInterval);
     
-    // Clean up the interval when component unmounts
+    // Return a cleanup function that clears the interval
     return () => {
-      clearInterval(interval);
+      clearInterval(intervalId);
       setIsPollingData(false);
     };
   };
@@ -262,12 +262,13 @@ const FirasGptPage: React.FC = () => {
   useEffect(() => {
     // Start polling when we get a record ID
     if (analysisRecordId) {
-      const pollingCleanup = pollForDataUpdates(analysisRecordId);
+      // Store the cleanup function
+      const cleanup = pollForDataUpdates(analysisRecordId);
       
-      // Clean up polling when component unmounts
+      // Return a cleanup function for the effect
       return () => {
-        if (typeof pollingCleanup === 'function') {
-          pollingCleanup();
+        if (cleanup) {
+          cleanup();
         }
       };
     }
