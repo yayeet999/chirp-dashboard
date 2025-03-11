@@ -167,7 +167,7 @@ Deliver your analysis in a structured format that clearly separates each angle, 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "o3-mini",
           messages: [
             { role: "system", content: systemPrompt },
             { 
