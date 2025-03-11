@@ -275,11 +275,12 @@ async function cleanTextWithGemini(content: string, apiKey: string): Promise<str
           {
             parts: [
               {
-                text: `Act as a text cleaner. Process the following uncleaned text as follows:
+                text: `Act as a text cleaner. You will be given a text input that you must properly clean. This involves only removing certain unwanted sections/text, ensuring you do NOT ADD, EDIT, OR ALTER THE REMAINING TEXT IN ANY WAY, YOU SIMPLY ONLY CLEAN WHAT YOU ARE INSTRUCTED TO CLEAN:
 
 1. REMOVE the entire <think>...text...</think> section at the beginning of the provided uncleaned text (delete it)
 2. Scan the entire remaining text and remove all signs of leftover citations such as [4], or [12][3] for example. Remove all these citation number brackets from the entire text without altering or removing anything else.
-3. Separate the remaining cleaned text into chunks of a minimal amount of 3 chunks and maximum amount of 8 chunks. Do not edit or alter the text, simply define where the chunks separations must happen based on reasonable semantic relevance
+3. After you finish step 2, you now have a fully cleaned text. Do NOT add any text/edits/alterations at ALL. Do not add any extra statements or comments. The text is now correctly fully cleaned.
+4. Separate the now cleaned text into chunks of a minimal amount of 3 chunks and maximum amount of 8 chunks. Do not edit or alter the text, simply define where the chunks separations must happen based on reasonable semantic relevance
 
 Here is the text to process:
 ${content}`
