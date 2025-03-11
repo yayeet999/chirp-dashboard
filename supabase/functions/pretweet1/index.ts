@@ -62,7 +62,7 @@ serve(async (req) => {
     // Fetch the required data from the tweetgenerationflow record
     const { data: record, error: recordError } = await supabase
       .from('tweetgenerationflow')
-      .select('geminiobservation, sonardeepresearch, sonarfactchecked, cleanedsonar, vectorcontext')
+      .select('geminiobservation, cleanedsonar, vectorcontext')
       .eq('id', recordId)
       .maybeSingle();
     
@@ -84,20 +84,23 @@ serve(async (req) => {
       throw new Error(`Record ${recordId} has no cleanedsonar data`);
     }
     
-    // Fetch the most recent shortterm_context1 from memory_context
-    const { data: memoryContext, error: memoryError } = await supabase
+    // Fetch the two most recent shortterm_context1 entries from memory_context
+    const { data: memoryContextEntries, error: memoryError } = await supabase
       .from('memory_context')
       .select('shortterm_context1')
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(2);
     
     if (memoryError) {
       console.error("Error fetching memory_context:", memoryError);
       throw new Error("Failed to fetch memory_context");
     }
     
-    const shortermContext = memoryContext?.shortterm_context1 || "";
+    // Combine the two most recent shortterm_context1 entries
+    const combinedShorttermContext = memoryContextEntries
+      .map(entry => entry.shortterm_context1 || "")
+      .filter(Boolean)
+      .join("\n\n");
     
     console.log("Retrieved all necessary context data, preparing OpenAI request...");
     
@@ -108,19 +111,19 @@ Using advanced semantic analysis, you easily synthesize and structure large amou
 
 Your PRIMARY TASK is to thoroughly analyze the GEMINIOBSERVATION, which contains the main insight to be transformed into social media content. You will break down this content into multiple angles and perspectives suitable for engaging social media posts, specifically tweets.
 
+IMPORTANT INSTRUCTION: DO NOT INCLUDE ANY EMOJIS OR HASHTAGS IN YOUR OUTPUT. Your analysis and content suggestions must be completely free of emojis and hashtags. Use only plain text with proper punctuation.
+
 ANALYTICAL HIERARCHY AND DATA SOURCES:
 1. GEMINIOBSERVATION - The central focus and primary source of your analysis. This contains the key topic and insights you must transform into various social media angles.
 2. CLEANEDSONAR - Fact-checked and cleaned information that provides accuracy and reliability to support your analysis.
-3. SONARDEEPRESEARCH - Detailed background research that adds depth and substance to your analysis.
-4. SONARFACTCHECKED - Original fact-checked content that helps verify claims and statements.
-5. VECTORCONTEXT - Semantic vector retrievals from extensive databases, ranked by relevance, offering diverse insights.
-6. SHORTTERM_CONTEXT - Recent discussions and trends that provide temporal context and ensure relevance.
+3. VECTORCONTEXT - Semantic vector retrievals from extensive databases, ranked by relevance, offering diverse insights.
+4. SHORTTERM_CONTEXT1 - Recent discussions and trends that provide temporal context and ensure relevance.
 
 PROCESS YOUR ANALYSIS ITERATIVELY:
 1. First Pass: Conduct an initial deep reading of the GEMINIOBSERVATION to identify core themes and potential angles.
-2. Second Pass: Examine the CLEANEDSONAR and SONARFACTCHECKED to verify factual accuracy and identify key supporting elements.
-3. Third Pass: Integrate insights from SONARDEEPRESEARCH and VECTORCONTEXT to add depth and nuance.
-4. Fourth Pass: Consider SHORTTERM_CONTEXT to ensure relevance to current discussions and avoiding redundancy.
+2. Second Pass: Examine the CLEANEDSONAR to verify factual accuracy and identify key supporting elements.
+3. Third Pass: Integrate insights from VECTORCONTEXT to add depth and nuance.
+4. Fourth Pass: Consider SHORTTERM_CONTEXT1 to ensure relevance to current discussions and avoiding redundancy.
 5. Final Pass: Refine, rerank, and restructure your analysis to present the most compelling angles.
 
 SOCIAL MEDIA ANGLES AND VIRALITY:
@@ -143,6 +146,7 @@ YOUR OUTPUT MUST:
 3. Demonstrate originality and avoid generic perspectives
 4. Maintain factual accuracy while maximizing engagement potential
 5. Prioritize brevity and clarity, optimized for the social media context
+6. CONTAIN NO EMOJIS OR HASHTAGS WHATSOEVER
 
 Deliver your analysis in a structured format that clearly separates each angle, its supporting context, and the various stylistic approaches.`;
     
@@ -150,10 +154,8 @@ Deliver your analysis in a structured format that clearly separates each angle, 
     const analysisContent = {
       geminiobservation: record.geminiobservation || "",
       cleanedsonar: record.cleanedsonar || "",
-      sonardeepresearch: record.sonardeepresearch || "",
-      sonarfactchecked: record.sonarfactchecked || "",
       vectorcontext: record.vectorcontext || "",
-      shortterm_context: shortermContext || ""
+      shortterm_context1: combinedShorttermContext || ""
     };
     
     // Call OpenAI API
@@ -167,7 +169,7 @@ Deliver your analysis in a structured format that clearly separates each angle, 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",  // Changed from o3-mini to gpt-4o-mini
+          model: "gpt-4o-mini",
           messages: [
             { role: "system", content: systemPrompt },
             { 
@@ -180,23 +182,17 @@ ${analysisContent.geminiobservation}
 CLEANEDSONAR:
 ${analysisContent.cleanedsonar}
 
-SONARDEEPRESEARCH:
-${analysisContent.sonardeepresearch}
-
-SONARFACTCHECKED:
-${analysisContent.sonarfactchecked}
-
 VECTORCONTEXT:
 ${analysisContent.vectorcontext}
 
-SHORTTERM_CONTEXT:
-${analysisContent.shortterm_context}
+SHORTTERM_CONTEXT1:
+${analysisContent.shortterm_context1}
 
-Please structure your analysis according to the instructions and provide clear, actionable insights for social media content creation.`
+Please structure your analysis according to the instructions and provide clear, actionable insights for social media content creation. Remember, do not include any emojis or hashtags in your output.`
             }
           ],
           temperature: 0.2,
-          max_tokens: 4096  // Reduced from 10000 to be within limits
+          max_tokens: 4096
         }),
       });
       
