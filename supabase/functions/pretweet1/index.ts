@@ -10,7 +10,6 @@ const corsHeaders = {
 // Constants for advanced features
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
-const DEFAULT_TEMPERATURE = 0.2;
 const LOG_LEVEL = 'info'; // 'debug', 'info', 'warn', 'error'
 
 /**
@@ -337,11 +336,10 @@ Deliver your analysis in a structured format that clearly separates each angle, 
  * @param {string} systemPrompt - System prompt
  * @param {string} userPrompt - User prompt
  * @param {string} model - Model to use
- * @param {number} temperature - Temperature for generation
  * @returns {Promise<string>} Generated content
  * @throws {Error} If API call fails after all retries
  */
-async function callOpenAI(apiKey, systemPrompt, userPrompt, model, temperature = DEFAULT_TEMPERATURE) {
+async function callOpenAI(apiKey, systemPrompt, userPrompt, model) {
   let retryCount = 0;
   let lastError = null;
   
@@ -361,7 +359,6 @@ async function callOpenAI(apiKey, systemPrompt, userPrompt, model, temperature =
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
           ],
-          temperature: temperature,
           max_completion_tokens: 15000
         }),
       });
