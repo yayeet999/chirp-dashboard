@@ -196,7 +196,7 @@ Please structure your analysis according to the instructions and provide clear, 
             }
           ],
           temperature: 0.2,
-          max_tokens: 4000
+          max_tokens: 10000
         }),
       });
       
