@@ -16,5 +16,18 @@ SELECT cron.schedule(
   $$
 );
 
+-- Create a job to run the context refiner scheduler (which now also checks for pretweet1) every 5 minutes
+SELECT cron.schedule(
+  'run-refiner-scheduler-every-5-minutes',
+  '*/5 * * * *', -- Every 5 minutes
+  $$
+  SELECT net.http_post(
+    url:='https://exqqpgsbpveeffpbxmdq.supabase.co/functions/v1/shortterm-context-refiner-scheduler',
+    headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4cXFwZ3NicHZlZWZmcGJ4bWRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyOTc4MzAsImV4cCI6MjA1Njg3MzgzMH0.U47uFPhOhruPZWCA_jPdm-VbWgVeF-I7N4U-DF2kyjw"}'::jsonb,
+    body:='{}'::jsonb
+  ) as request_id;
+  $$
+);
+
 -- Drop the old job if it exists
 SELECT cron.unschedule('data-collection-every-2-hours');
