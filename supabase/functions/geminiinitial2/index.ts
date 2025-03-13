@@ -274,9 +274,39 @@ Based on the system prompt instructions, select the single best observation that
         console.error("Error automatically triggering pretweetcontext:", errorText);
       } else {
         console.log("Pretweetcontext function automatically triggered successfully");
+        
+        // Add a delay before triggering pretweet2 to allow pretweetcontext to complete
+        console.log("Waiting for pretweetcontext to complete before triggering pretweet2...");
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        
+        // Now trigger the pretweet2 function
+        console.log("Automatically triggering pretweet2 function...");
+        const pretweet2Response = await fetch(`${supabaseUrl}/functions/v1/pretweet2`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseAnonKey}`,
+          },
+          body: JSON.stringify({ recordId: recordId })
+        }).catch(error => {
+          console.error("Network error calling pretweet2:", error);
+          return { ok: false, statusText: error.message };
+        });
+        
+        if (!pretweet2Response.ok) {
+          let errorText = "Unknown error";
+          try {
+            errorText = await pretweet2Response.text();
+          } catch (e) {
+            errorText = pretweet2Response.statusText || "Failed to get error details";
+          }
+          console.error("Error automatically triggering pretweet2:", errorText);
+        } else {
+          console.log("Pretweet2 function automatically triggered successfully");
+        }
       }
     } catch (autoTriggerError) {
-      console.error("Failed to automatically trigger pretweetcontext:", autoTriggerError);
+      console.error("Failed to automatically trigger next functions:", autoTriggerError);
     }
     
     return new Response(
