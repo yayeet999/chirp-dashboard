@@ -182,7 +182,7 @@ const FirasGptPage: React.FC = () => {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              Deep Analysis Tool
+              General Tweet Generation
             </CardTitle>
             <CardDescription>
               Run gem_initialanalyzer for content analysis
@@ -197,7 +197,7 @@ const FirasGptPage: React.FC = () => {
                 disabled={isAnalyzing}
                 className="w-full md:w-auto"
               >
-                {isAnalyzing ? "Analyzing..." : "Run Deep Analysis"} 
+                {isAnalyzing ? "Analyzing..." : "Gen Tweet Workflow"} 
               </Button>
             </div>
             
