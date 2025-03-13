@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from "react";
-import { Bot, Users, MessageCircle, FileText, User, Hash, Clock, Sparkles, Layers, CheckSquare, Tag } from "lucide-react";
+import { Bot, Users, MessageCircle, FileText, User, Hash, Clock, Sparkles, Layers } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/dashboard/StatusBadge";
@@ -41,9 +40,6 @@ const FirasGptPage: React.FC = () => {
   const [currentGroup, setCurrentGroup] = useState<string>("");
   const [centralTime, setCentralTime] = useState<string>("");
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [isProcessingPretweet2, setIsProcessingPretweet2] = useState<boolean>(false);
-  const [isProcessingPretweet3, setIsProcessingPretweet3] = useState<boolean>(false);
   const [analysisResult, setAnalysisResult] = useState<string>("");
   const [analysisRecordId, setAnalysisRecordId] = useState<string | null>(null);
   const [pretweet3Result, setPretweet3Result] = useState<string>("");
@@ -138,155 +134,6 @@ const FirasGptPage: React.FC = () => {
     }
   };
 
-  const runPretweet1 = async () => {
-    if (!analysisRecordId) {
-      toast({
-        title: "No Record ID",
-        description: "Please run the deep analysis first to get a record ID",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsProcessing(true);
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('pretweet1', {
-        body: { recordId: analysisRecordId }
-      });
-      
-      if (error) {
-        console.error("Error running pretweet1:", error);
-        toast({
-          title: "Social Media Analysis Failed",
-          description: error.message || "Failed to run social media analysis",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      toast({
-        title: "Social Media Analysis Complete",
-        description: "Content has been analyzed for social media angles and approaches",
-        variant: "default"
-      });
-      
-    } catch (error) {
-      console.error("Failed to run pretweet1:", error);
-      toast({
-        title: "Social Media Analysis Failed",
-        description: "An unexpected error occurred",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const runPretweet2 = async () => {
-    if (!analysisRecordId) {
-      toast({
-        title: "No Record ID",
-        description: "Please run the deep analysis first to get a record ID",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsProcessingPretweet2(true);
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('pretweet2', {
-        body: { recordId: analysisRecordId }
-      });
-      
-      if (error) {
-        console.error("Error running pretweet2:", error);
-        toast({
-          title: "Content Selection Failed",
-          description: error.message || "Failed to run angle selection",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      toast({
-        title: "Content Selection Complete",
-        description: "Top two content angles have been selected successfully",
-        variant: "default"
-      });
-      
-    } catch (error) {
-      console.error("Failed to run pretweet2:", error);
-      toast({
-        title: "Content Selection Failed",
-        description: "An unexpected error occurred",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessingPretweet2(false);
-    }
-  };
-
-  const runPretweet3 = async () => {
-    if (!analysisRecordId) {
-      toast({
-        title: "No Record ID",
-        description: "Please run the deep analysis first to get a record ID",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsProcessingPretweet3(true);
-    setPretweet3Result("");
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('pretweet3', {
-        body: { recordId: analysisRecordId }
-      });
-      
-      if (error) {
-        console.error("Error running pretweet3:", error);
-        toast({
-          title: "Content Categorization Failed",
-          description: error.message || "Failed to categorize content",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      // Fetch the pretweet3 result after successful processing
-      const { data: recordData, error: recordError } = await supabase
-        .from('tweetgenerationflow')
-        .select('pretweet3')
-        .eq('id', analysisRecordId)
-        .single();
-        
-      if (recordError) {
-        console.error("Error fetching pretweet3 result:", recordError);
-      } else if (recordData && recordData.pretweet3) {
-        setPretweet3Result(recordData.pretweet3);
-      }
-      
-      toast({
-        title: "Content Categorization Complete",
-        description: "Content angles have been categorized successfully",
-        variant: "default"
-      });
-      
-    } catch (error) {
-      console.error("Failed to run pretweet3:", error);
-      toast({
-        title: "Content Categorization Failed",
-        description: "An unexpected error occurred",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessingPretweet3(false);
-    }
-  };
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between mb-6">
@@ -335,10 +182,10 @@ const FirasGptPage: React.FC = () => {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              Tweet Generation Tools
+              Deep Analysis Tool
             </CardTitle>
             <CardDescription>
-              Tools for analyzing content and generating tweet ideas
+              Run gem_initialanalyzer for content analysis
             </CardDescription>
           </div>
         </CardHeader>
@@ -351,36 +198,6 @@ const FirasGptPage: React.FC = () => {
                 className="w-full md:w-auto"
               >
                 {isAnalyzing ? "Analyzing..." : "Run Deep Analysis"} 
-              </Button>
-              
-              <Button 
-                onClick={runPretweet1} 
-                disabled={isProcessing || !analysisRecordId}
-                variant="outline"
-                className="w-full md:w-auto"
-              >
-                <Layers className="h-4 w-4 mr-2" />
-                {isProcessing ? "Processing..." : "Run Content Analysis"}
-              </Button>
-              
-              <Button 
-                onClick={runPretweet2} 
-                disabled={isProcessingPretweet2 || !analysisRecordId}
-                variant="outline"
-                className="w-full md:w-auto"
-              >
-                <CheckSquare className="h-4 w-4 mr-2" />
-                {isProcessingPretweet2 ? "Selecting..." : "Select Top Angles"}
-              </Button>
-              
-              <Button 
-                onClick={runPretweet3} 
-                disabled={isProcessingPretweet3 || !analysisRecordId}
-                variant="outline"
-                className="w-full md:w-auto"
-              >
-                <Tag className="h-4 w-4 mr-2" />
-                {isProcessingPretweet3 ? "Categorizing..." : "Categorize Content"}
               </Button>
             </div>
             
