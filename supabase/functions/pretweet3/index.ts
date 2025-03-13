@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -788,8 +789,14 @@ serve(async (req) => {
     }
     
     // Fetch the required data from the tweetgenerationflow record
-    const { record, recordId: fetchedRecordId } = await fetchTweetGenerationRecord(supabase, recordId);
+    log('info', `Fetching tweetgenerationflow record with ID: ${recordId || 'most recent'}`);
     
+    // The key change - ensure the result from fetchTweetGenerationRecord is properly destructured
+    const fetchResult = await fetchTweetGenerationRecord(supabase, recordId);
+    const recordData = fetchResult.record;
+    const fetchedRecordId = fetchResult.recordId;
+    
+    log('info', `Successfully retrieved record with ID: ${fetchedRecordId}`);
     log('info', "Retrieved content from pretweet2 and geminiobservation columns, preparing Gemini API request...");
     
     // Create system prompt
@@ -799,11 +806,11 @@ serve(async (req) => {
     const userPrompt = `Please analyze and categorize the content angles from pretweet2 below, considering the geminiobservation context:
 
 <angles>
-${record.pretweet2}
+${recordData.pretweet2}
 </angles>
 
 <geminiobservation>
-${record.geminiobservation}
+${recordData.geminiobservation}
 </geminiobservation>`;
     
     // Call Gemini API to categorize the content
