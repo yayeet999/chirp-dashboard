@@ -618,7 +618,7 @@ What is biological freedom? Put simply, it's the ability to choose what you want
 
 Areas likely to see radical transformation:
 
-𝗣𝗵𝘆𝘀𝗶𝗰𝗮𝗹 𝗔𝗽𝗽𝗲𝗮𝗿𝗮𝗻𝗰𝗲
+𝗣𝗵ysis𝗰𝗮𝗹 𝗔𝗽𝗽𝗲𝗮𝗿𝗮𝗻𝗰𝗲
 - Beyond just weight management to personalized body composition
 - Enhanced control over aging processes and appearance
 - Optimization of physical capabilities within ethical boundaries
@@ -951,6 +951,48 @@ async function saveAnalysisResult(supabase, recordId, analysisResult) {
   log('info', "Analysis result saved to database successfully");
 }
 
+/**
+ * Automatically triggers the pretweet2 function
+ * @param {string} supabaseUrl - Supabase URL
+ * @param {string} supabaseAnonKey - Supabase anon key
+ * @param {string} recordId - Record ID to process
+ */
+async function triggerPretweet2Function(supabaseUrl, supabaseAnonKey, recordId) {
+  log('info', "Automatically triggering pretweet2 function...");
+  
+  try {
+    // Use a more resilient approach to call the pretweet2 function
+    const pretweet2Response = await fetch(`${supabaseUrl}/functions/v1/pretweet2`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify({ recordId: recordId })
+    }).catch(error => {
+      log('error', "Network error calling pretweet2:", error);
+      return { ok: false, statusText: error.message };
+    });
+    
+    if (!pretweet2Response.ok) {
+      let errorText = "Unknown error";
+      try {
+        errorText = await pretweet2Response.text();
+      } catch (e) {
+        errorText = pretweet2Response.statusText || "Failed to get error details";
+      }
+      log('error', "Error automatically triggering pretweet2:", errorText);
+      return false;
+    } else {
+      log('info', "pretweet2 function automatically triggered successfully");
+      return true;
+    }
+  } catch (autoTriggerError) {
+    log('error', "Failed to automatically trigger pretweet2:", autoTriggerError);
+    return false;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -1025,13 +1067,21 @@ Please structure your analysis according to the instructions and provide clear, 
     // Save the analysis result back to the database
     await saveAnalysisResult(supabase, recordId, analysisResult);
     
+    // Automatically trigger the pretweet2 function
+    // Wait a bit to ensure the database update is fully committed
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Trigger the pretweet2 function
+    await triggerPretweet2Function(env.supabaseUrl, env.supabaseAnonKey, recordId);
+    
     // Return success response
     return new Response(
       JSON.stringify({ 
         success: true, 
         recordId: recordId,
         message: "Content analysis completed and saved successfully",
-        analysisLength: analysisResult.length
+        analysisLength: analysisResult.length,
+        nextStep: "pretweet2 function has been triggered"
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
