@@ -675,11 +675,11 @@ First, echo the exact input you received:
 
 <input_received>
 <angles>
-[Exact angles text as provided]
+${record.pretweet2}
 </angles>
 
 <geminiobservation>
-[Exact geminiobservation text as provided]
+${record.geminiobservation}
 </geminiobservation>
 </input_received>
 
@@ -805,3 +805,4 @@ ${record.geminiobservation}
     );
   }
 });
+
