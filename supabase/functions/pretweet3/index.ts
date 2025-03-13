@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -196,15 +197,7 @@ async function callGemini(apiKey, systemPrompt, userPrompt) {
       }
       
       const result = await geminiResponse.json();
-      
-      // Add explicit check for candidates and content
-      if (!result.candidates || !result.candidates[0] || !result.candidates[0].content || 
-          !result.candidates[0].content.parts || !result.candidates[0].content.parts[0]) {
-        log('error', `Gemini API returned unexpected response format`, result);
-        throw new Error(`Gemini API returned unexpected response format: ${JSON.stringify(result)}`);
-      }
-      
-      const content = result.candidates[0].content.parts[0].text || "";
+      const content = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
       
       if (!content) {
         throw new Error("Gemini API returned empty content");
@@ -661,4 +654,192 @@ You will use this comprehensive AI content taxonomy to classify each angle:
     <description>Encouraging, inspirational, or mindset-focused content that motivates action or perspective shifts</description>
     <metadata>
       <typical_length>80-180 characters</typical_length>
-      <ideal_frequency>2-3 times weekly</ideal
+      <ideal_frequency>2-3 times weekly</ideal_frequency>
+      <target_audience>Entrepreneurs, builders, general technology enthusiasts</target_audience>
+    </metadata>
+    <subcategories>
+      <subcategory name="Opportunity Highlighting">
+        <description>Content that emphasizes emerging opportunities in AI</description>
+        <example>"We're going to get AI models that are much better at reasoning within 6mo. Do *everything* you can to prepare your workflows for that moment. On day 1 you'll be moving 200mph while everyone else is scrambling. Massive advantage."</example>
+        <key_characteristics>
+          <characteristic>Identifies specific opportunities or advantages</characteristic>
+          <characteristic>Often includes a timeline or sense of urgency</characteristic>
+          <characteristic>Typically provides a clear call to action</characteristic>
+          <characteristic>May emphasize competitive advantage or first-mover benefits</characteristic>
+        </key_characteristics>
+      </subcategory>
+      <subcategory name="Builder Encouragement">
+        <description>Content that encourages creation, building, or entrepreneurship</description>
+        <example>"Your new game won't go viral. You won't get media coverage. You won't earn a million dollars. BUT You'll get some players. You'll grow a following. You'll make a few bucks. Dismiss the critics and ship it. Builders always win."</example>
+        <key_characteristics>
+          <characteristic>Directly addresses and encourages builders or creators</characteristic>
+          <characteristic>Often acknowledges challenges while emphasizing persistence</characteristic>
+          <characteristic>Typically offers realistic expectations with positive framing</characteristic>
+          <characteristic>May use contrasting statements (won't/will) for emphasis</characteristic>
+        </key_characteristics>
+      </subcategory>
+      <subcategory name="Success Stories">
+        <description>Short narratives about personal or observed success with AI</description>
+        <example>"Back in September, I saw the potential of Cursor, and I knew this was the future. That's when I made the biggest bet on myself. I quit my job as a software developer at KPMG and started my agency. Since then: $70K+ in total revenue."</example>
+        <key_characteristics>
+          <characteristic>Shares specific success metrics or outcomes</characteristic>
+          <characteristic>Often structured as a personal journey narrative</characteristic>
+          <characteristic>Typically includes decision points and resulting outcomes</characteristic>
+          <characteristic>May implicitly encourage similar action from readers</characteristic>
+        </key_characteristics>
+      </subcategory>
+      <subcategory name="Mindset Advice">
+        <description>Perspectives on cultivating productive mindsets or approaches to AI</description>
+        <example>"Instead of chasing clients, become someone they want to work with. Share your process. Build in public. Position yourself as the expert. People want to hire the best. Show them why that's you."</example>
+        <key_characteristics>
+          <characteristic>Focuses on mental approaches rather than specific tactics</characteristic>
+          <characteristic>Often structured as a series of concise directives</characteristic>
+          <characteristic>Typically addresses common challenges or limiting beliefs</characteristic>
+          <characteristic>May use contrasting approaches (instead of X, do Y)</characteristic>
+        </key_characteristics>
+      </subcategory>
+    </subcategories>
+  </category>
+</categorization_system>
+
+## OUTPUT FORMAT
+
+First, echo the exact input you received:
+
+<input_received>
+<angles>
+${record.pretweet2}
+</angles>
+
+<geminiobservation>
+${record.geminiobservation}
+</geminiobservation>
+</input_received>
+
+Then, for each angle using the categorization system, provide a comprehensive analysis in natural language format:
+
+<analysis for angle X>
+
+**Primary Classification:** [Category Name] > [Subcategory Name]
+
+**Why this classification fits:**
+[Clear explanation of why this classification is appropriate, referencing specific elements of the angle]
+
+**Category Details:**
+- Description: [Category description]
+- Typical length: [Length range from metadata]
+- Ideal posting frequency: [Frequency from metadata]
+- Target audience: [Audience from metadata]
+
+**Subcategory Details:**
+- Description: [Subcategory description]
+- Key characteristics that match this angle:
+  * [Relevant characteristic 1]
+  * [Relevant characteristic 2]
+  * [Other relevant characteristics]
+
+**Secondary Classification:** [Category Name] > [Subcategory Name]
+
+**Why this classification also fits:**
+[Clear explanation of why this secondary classification is appropriate, referencing specific elements of the angle]
+
+**Category Details:**
+- Description: [Category description]
+- Typical length: [Length range from metadata]
+- Ideal posting frequency: [Frequency from metadata]
+- Target audience: [Audience from metadata]
+
+**Subcategory Details:**
+- Description: [Subcategory description]
+- Key characteristics that match this angle:
+  * [Relevant characteristic 1]
+  * [Relevant characteristic 2]
+  * [Other relevant characteristics]
+</analysis for angle X>
+
+<recommendation>
+**Recommended Classification for Tweeting:**
+Based on the geminiobservation's context about [brief summary of observation], the [Primary/Secondary] classification ([Category] > [Subcategory]) would likely perform best as a tweet because [explanation in 2-3 sentences].
+</recommendation>`;
+}
+
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+  
+  try {
+    log('info', "Starting pretweet3 processing...");
+    
+    // Get environment variables
+    const env = getEnvironmentVariables();
+    
+    // Initialize Supabase client
+    const supabase = createClient(env.supabaseUrl, env.supabaseAnonKey);
+    
+    // Get the record ID from the request body
+    const requestData = await req.json().catch(() => ({}));
+    const recordId = requestData.recordId;
+    
+    if (!recordId) {
+      log('info', "No recordId provided, will fetch the most recent record");
+    } else {
+      log('info', `Processing recordId: ${recordId}`);
+    }
+    
+    // Fetch the required data from the tweetgenerationflow record
+    log('info', `Fetching tweetgenerationflow record with ID: ${recordId || 'most recent'}`);
+    
+    // The key change - ensure the result from fetchTweetGenerationRecord is properly destructured
+    const fetchResult = await fetchTweetGenerationRecord(supabase, recordId);
+    const recordData = fetchResult.record;
+    const fetchedRecordId = fetchResult.recordId;
+    
+    log('info', `Successfully retrieved record with ID: ${fetchedRecordId}`);
+    log('info', "Retrieved content from pretweet2 and geminiobservation columns, preparing Gemini API request...");
+    
+    // Create system prompt
+    const systemPrompt = createSystemPrompt();
+    
+    // Prepare user prompt with the pretweet2 content to be analyzed
+    const userPrompt = `Please analyze and categorize the content angles from pretweet2 below, considering the geminiobservation context:
+
+<angles>
+${recordData.pretweet2}
+</angles>
+
+<geminiobservation>
+${recordData.geminiobservation}
+</geminiobservation>`;
+    
+    // Call Gemini API to categorize the content
+    log('info', "Calling Gemini API to categorize content angles...");
+    const analysisResult = await callGemini(env.geminiApiKey, systemPrompt, userPrompt);
+    
+    log('info', "Analysis completed. Saving results to database...");
+    log('debug', "Analysis result length:", analysisResult.length);
+    log('debug', "Analysis result (first 200 chars):", analysisResult.substring(0, 200));
+    
+    // Save the analysis result back to the database
+    await saveAnalysisResult(supabase, fetchedRecordId, analysisResult);
+    
+    // Return success response
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        recordId: fetchedRecordId,
+        message: "Content categorization completed and saved successfully",
+        analysisLength: analysisResult.length
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+    );
+    
+  } catch (error) {
+    log('error', "pretweet3 processing failed", error);
+    return new Response(
+      JSON.stringify({ error: "pretweet3 processing failed", details: error.message }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+    );
+  }
+});
