@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Bot, Users, MessageCircle, FileText, User, Hash, Clock, Sparkles, Layers, Tag } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,6 +43,7 @@ const FirasGptPage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isProcessingPretweet2, setIsProcessingPretweet2] = useState<boolean>(false);
   const [isProcessingPretweet3, setIsProcessingPretweet3] = useState<boolean>(false);
+  const [isProcessingGemini, setIsProcessingGemini] = useState<boolean>(false);
   const [analysisResult, setAnalysisResult] = useState<string>("");
   const [analysisRecordId, setAnalysisRecordId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -270,6 +270,51 @@ const FirasGptPage: React.FC = () => {
     }
   };
 
+  const runGeminiInitial = async () => {
+    if (!analysisRecordId) {
+      toast({
+        title: "No Record ID",
+        description: "Please run the deep analysis first to get a record ID",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsProcessingGemini(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('geminiinitial2', {
+        body: { recordId: analysisRecordId }
+      });
+      
+      if (error) {
+        console.error("Error running Gemini analysis:", error);
+        toast({
+          title: "Gemini Analysis Failed",
+          description: error.message || "Failed to run Gemini analysis",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      toast({
+        title: "Gemini Analysis Complete",
+        description: "Top observation has been selected and saved",
+        variant: "default"
+      });
+      
+    } catch (error) {
+      console.error("Failed to run Gemini analysis:", error);
+      toast({
+        title: "Gemini Analysis Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessingGemini(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between mb-6">
@@ -327,13 +372,23 @@ const FirasGptPage: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex flex-col md:flex-row gap-4 flex-wrap">
               <Button 
                 onClick={runDeepAnalysis} 
                 disabled={isAnalyzing}
                 className="w-full md:w-auto"
               >
                 {isAnalyzing ? "Analyzing..." : "Run Deep Analysis"} 
+              </Button>
+              
+              <Button 
+                onClick={runGeminiInitial} 
+                disabled={isProcessingGemini || !analysisRecordId}
+                variant="outline"
+                className="w-full md:w-auto"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                {isProcessingGemini ? "Processing..." : "Gemini Analysis"}
               </Button>
               
               <Button 
@@ -428,3 +483,4 @@ const FirasGptPage: React.FC = () => {
 };
 
 export default FirasGptPage;
+

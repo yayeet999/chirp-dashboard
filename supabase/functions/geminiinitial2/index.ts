@@ -13,6 +13,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
   
+  // Get environment variables directly
   const environmentVariables = Deno.env.toObject();
   const supabaseUrl = environmentVariables.SUPABASE_URL || '';
   const supabaseAnonKey = environmentVariables.SUPABASE_ANON_KEY || '';

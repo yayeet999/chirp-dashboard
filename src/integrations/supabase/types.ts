@@ -27,6 +27,42 @@ export type Database = {
         }
         Relationships: []
       }
+      fn_edge_logs: {
+        Row: {
+          created_at: string | null
+          edge_function: string | null
+          id: string
+          notes: string | null
+          operation: string | null
+          record_id: string | null
+          retry_count: number | null
+          status_code: number | null
+          table_name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          edge_function?: string | null
+          id?: string
+          notes?: string | null
+          operation?: string | null
+          record_id?: string | null
+          retry_count?: number | null
+          status_code?: number | null
+          table_name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          edge_function?: string | null
+          id?: string
+          notes?: string | null
+          operation?: string | null
+          record_id?: string | null
+          retry_count?: number | null
+          status_code?: number | null
+          table_name?: string | null
+        }
+        Relationships: []
+      }
       memory_context: {
         Row: {
           created_at: string
