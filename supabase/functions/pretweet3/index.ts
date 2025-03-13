@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -64,26 +63,71 @@ function getEnvironmentVariables() {
 }
 
 /**
- * Fetches a specific tweetgenerationflow record by ID
+ * Fetches a specific tweetgenerationflow record by ID or the most recent record if no ID is provided
  * @param {SupabaseClient} supabase - Supabase client
- * @param {string} recordId - Record ID to fetch
- * @returns {Promise<Object>} The fetched record
+ * @param {string} recordId - Record ID to fetch (optional)
+ * @returns {Promise<Object>} The fetched record and its ID
  * @throws {Error} If the record cannot be fetched or required fields are missing
  */
 async function fetchTweetGenerationRecord(supabase, recordId) {
   let record = null;
+  let fetchedRecordId = recordId;
   let recordError = null;
   let retryCount = 0;
   
   while (retryCount < MAX_RETRIES) {
-    const { data, error } = await supabase
-      .from('tweetgenerationflow')
-      .select('pretweet2, geminiobservation')
-      .eq('id', recordId)
-      .maybeSingle();
-    
-    if (error) {
-      log('error', `Error fetching tweetgenerationflow record ${recordId} (attempt ${retryCount + 1})`, error);
+    try {
+      if (recordId) {
+        // If recordId is provided, fetch that specific record
+        log('info', `Fetching tweetgenerationflow record with ID: ${recordId} (attempt ${retryCount + 1})`);
+        const { data, error } = await supabase
+          .from('tweetgenerationflow')
+          .select('pretweet2, geminiobservation')
+          .eq('id', recordId)
+          .maybeSingle();
+        
+        if (error) {
+          throw error;
+        }
+        
+        record = data;
+      } else {
+        // If no recordId is provided, fetch the most recent record
+        log('info', `No recordId provided. Fetching most recent tweetgenerationflow record (attempt ${retryCount + 1})`);
+        const { data, error } = await supabase
+          .from('tweetgenerationflow')
+          .select('id, pretweet2, geminiobservation')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (error) {
+          throw error;
+        }
+        
+        record = data;
+        if (record) {
+          fetchedRecordId = record.id;
+          log('info', `Found most recent record with ID: ${fetchedRecordId}`);
+        }
+      }
+      
+      // Validate the record contents
+      if (!record || !record.pretweet2 || !record.geminiobservation) {
+        log('warn', `Record ${recordId || 'most recent'} not found or missing required data (attempt ${retryCount + 1})`);
+        retryCount++;
+        
+        if (retryCount < MAX_RETRIES) {
+          const backoffTime = Math.pow(2, retryCount) * RETRY_DELAY_MS;
+          log('info', `Record might still be committing to database. Retrying in ${backoffTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, backoffTime));
+        }
+      } else {
+        // Success, exit the retry loop
+        break;
+      }
+    } catch (error) {
+      log('error', `Error fetching tweetgenerationflow record ${recordId || 'most recent'} (attempt ${retryCount + 1})`, error);
       recordError = error;
       retryCount++;
       
@@ -92,27 +136,15 @@ async function fetchTweetGenerationRecord(supabase, recordId) {
         log('info', `Retrying in ${backoffTime}ms...`);
         await new Promise(resolve => setTimeout(resolve, backoffTime));
       }
-    } else if (!data || !data.pretweet2 || !data.geminiobservation) {
-      log('warn', `Record ${recordId} not found or missing required data (attempt ${retryCount + 1})`);
-      retryCount++;
-      
-      if (retryCount < MAX_RETRIES) {
-        const backoffTime = Math.pow(2, retryCount) * RETRY_DELAY_MS;
-        log('info', `Record might still be committing to database. Retrying in ${backoffTime}ms...`);
-        await new Promise(resolve => setTimeout(resolve, backoffTime));
-      }
-    } else {
-      record = data;
-      break; // Success, exit the retry loop
     }
   }
   
   // If we still don't have the record after all retries, throw an error
   if (!record || !record.pretweet2 || !record.geminiobservation) {
-    throw new Error(`Record ${recordId} not found or missing required data after ${MAX_RETRIES} attempts`);
+    throw new Error(`Record ${recordId || 'most recent'} not found or missing required data after ${MAX_RETRIES} attempts`);
   }
   
-  return record;
+  return { record, recordId: fetchedRecordId };
 }
 
 /**
@@ -750,14 +782,13 @@ serve(async (req) => {
     const recordId = requestData.recordId;
     
     if (!recordId) {
-      return new Response(
-        JSON.stringify({ error: "Record ID is required" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
+      log('info', "No recordId provided, will fetch the most recent record");
+    } else {
+      log('info', `Processing recordId: ${recordId}`);
     }
     
     // Fetch the required data from the tweetgenerationflow record
-    const record = await fetchTweetGenerationRecord(supabase, recordId);
+    const { record, recordId: fetchedRecordId } = await fetchTweetGenerationRecord(supabase, recordId);
     
     log('info', "Retrieved content from pretweet2 and geminiobservation columns, preparing Gemini API request...");
     
@@ -784,13 +815,13 @@ ${record.geminiobservation}
     log('debug', "Analysis result (first 200 chars):", analysisResult.substring(0, 200));
     
     // Save the analysis result back to the database
-    await saveAnalysisResult(supabase, recordId, analysisResult);
+    await saveAnalysisResult(supabase, fetchedRecordId, analysisResult);
     
     // Return success response
     return new Response(
       JSON.stringify({ 
         success: true, 
-        recordId: recordId,
+        recordId: fetchedRecordId,
         message: "Content categorization completed and saved successfully",
         analysisLength: analysisResult.length
       }),
@@ -805,4 +836,3 @@ ${record.geminiobservation}
     );
   }
 });
-
