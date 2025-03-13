@@ -83,8 +83,6 @@ export type Database = {
           geminiobservation: string | null
           id: string
           pretweet1: string | null
-          pretweet2: string | null
-          pretweet3: string | null
           sonardeepresearch: string | null
           sonarfactchecked: string | null
           vectorcontext: string | null
@@ -96,8 +94,6 @@ export type Database = {
           geminiobservation?: string | null
           id?: string
           pretweet1?: string | null
-          pretweet2?: string | null
-          pretweet3?: string | null
           sonardeepresearch?: string | null
           sonarfactchecked?: string | null
           vectorcontext?: string | null
@@ -109,8 +105,6 @@ export type Database = {
           geminiobservation?: string | null
           id?: string
           pretweet1?: string | null
-          pretweet2?: string | null
-          pretweet3?: string | null
           sonardeepresearch?: string | null
           sonarfactchecked?: string | null
           vectorcontext?: string | null

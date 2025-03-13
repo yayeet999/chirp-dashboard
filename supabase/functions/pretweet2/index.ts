@@ -265,64 +265,6 @@ async function saveAnalysisResult(supabase, recordId, analysisResult) {
 }
 
 /**
- * Call the pretweet3 edge function to continue the workflow
- * @returns {Promise<void>}
- */
-async function triggerPretweet3Function(supabaseUrl, supabaseAnonKey) {
-  log('info', `Triggering pretweet3 edge function without passing any data`);
-  
-  const pretweet3Url = `${supabaseUrl}/functions/v1/pretweet3`;
-  let retryCount = 0;
-  
-  while (retryCount < MAX_RETRIES) {
-    try {
-      // Call pretweet3 with an empty object - pretweet3 will find the latest record on its own
-      const response = await fetch(pretweet3Url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`
-        },
-        body: JSON.stringify({}) // Empty object - no data passed
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        log('error', `Error calling pretweet3 function (${response.status}, attempt ${retryCount + 1})`, errorText);
-        
-        if (retryCount < MAX_RETRIES - 1) {
-          const delay = RETRY_DELAY_MS * Math.pow(2, retryCount);
-          log('info', `Retrying pretweet3 trigger in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          retryCount++;
-          continue;
-        }
-        
-        throw new Error(`Failed to trigger pretweet3: ${response.status} ${errorText}`);
-      }
-      
-      const result = await response.json();
-      log('info', `Successfully triggered pretweet3 function`, result);
-      return;
-      
-    } catch (error) {
-      log('error', `Exception when triggering pretweet3 (attempt ${retryCount + 1})`, error.message);
-      
-      if (retryCount < MAX_RETRIES - 1) {
-        const delay = RETRY_DELAY_MS * Math.pow(2, retryCount);
-        log('info', `Retrying pretweet3 trigger in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      } else {
-        log('error', `Failed to trigger pretweet3 after ${MAX_RETRIES} attempts`);
-        // We'll continue with the function even if pretweet3 fails, just log the error
-      }
-      
-      retryCount++;
-    }
-  }
-}
-
-/**
  * Creates the system prompt for content evaluation
  * @returns {string} The system prompt
  */
@@ -434,25 +376,13 @@ Please analyze all these angles and select ONLY the TWO most promising ones base
     // Save the analysis result back to the database
     await saveAnalysisResult(supabase, recordId, analysisResult);
     
-    // After successful completion of pretweet2, trigger pretweet3
-    log('info', "Triggering pretweet3 to continue the workflow...");
-    try {
-      // Call pretweet3 without passing any data - it will find the latest record on its own
-      await triggerPretweet3Function(env.supabaseUrl, env.supabaseAnonKey);
-      log('info', "pretweet3 function triggered successfully");
-    } catch (error) {
-      log('error', "Failed to trigger pretweet3 function", error);
-      // Continue with the response even if pretweet3 triggering fails
-    }
-    
     // Return success response
     return new Response(
       JSON.stringify({ 
         success: true, 
         recordId: recordId,
         message: "Content angle selection completed and saved successfully",
-        analysisLength: analysisResult.length,
-        nextStep: "pretweet3 function triggered automatically"
+        analysisLength: analysisResult.length
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
