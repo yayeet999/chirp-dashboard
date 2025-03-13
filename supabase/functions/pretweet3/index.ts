@@ -231,7 +231,7 @@ When presented with multiple content angles on a specific AI topic, you will:
 
 You will receive:
 
-Two or detailed content angles exploring different aspects of a specific AI topic
+Two detailed content angles exploring different aspects of a specific AI topic
 
 And
 
