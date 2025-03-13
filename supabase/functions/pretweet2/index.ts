@@ -279,6 +279,7 @@ async function triggerPretweet3Function(supabaseUrl, supabaseAnonKey, recordId) 
   
   while (retryCount < MAX_RETRIES) {
     try {
+      // Simplified: Just pass the recordId, no need to transfer any record data
       const response = await fetch(pretweet3Url, {
         method: 'POST',
         headers: {
@@ -439,6 +440,7 @@ Please analyze all these angles and select ONLY the TWO most promising ones base
     // After successful completion of pretweet2, trigger pretweet3
     log('info', "Triggering pretweet3 to continue the workflow...");
     try {
+      // Simply pass the recordId to pretweet3, which will fetch the data it needs
       await triggerPretweet3Function(env.supabaseUrl, env.supabaseAnonKey, recordId);
       log('info', "pretweet3 function triggered successfully");
     } catch (error) {
