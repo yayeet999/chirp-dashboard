@@ -265,6 +265,38 @@ async function saveAnalysisResult(supabase, recordId, analysisResult) {
 }
 
 /**
+ * Triggers the pretweet3 edge function
+ * @param {string} supabaseUrl - Supabase URL
+ * @param {string} supabaseAnonKey - Supabase anonymous key
+ */
+async function triggerPretweet3Function(supabaseUrl, supabaseAnonKey) {
+  try {
+    log('info', "Automatically triggering pretweet3 function...");
+    
+    const response = await fetch(`${supabaseUrl}/functions/v1/pretweet3`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseAnonKey}`
+      },
+      body: JSON.stringify({}) // Empty object, no data passed
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Unknown error");
+      log('error', `Error triggering pretweet3 function: ${response.status} - ${errorText}`);
+      return false;
+    }
+    
+    log('info', "pretweet3 function triggered successfully");
+    return true;
+  } catch (error) {
+    log('error', `Failed to trigger pretweet3 function`, error);
+    return false;
+  }
+}
+
+/**
  * Creates the system prompt for content evaluation
  * @returns {string} The system prompt
  */
@@ -376,12 +408,15 @@ Please analyze all these angles and select ONLY the TWO most promising ones base
     // Save the analysis result back to the database
     await saveAnalysisResult(supabase, recordId, analysisResult);
     
+    // Trigger pretweet3 function without passing any data
+    await triggerPretweet3Function(env.supabaseUrl, env.supabaseAnonKey);
+    
     // Return success response
     return new Response(
       JSON.stringify({ 
         success: true, 
         recordId: recordId,
-        message: "Content angle selection completed and saved successfully",
+        message: "Content angle selection completed and saved successfully. Pretweet3 function triggered.",
         analysisLength: analysisResult.length
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
