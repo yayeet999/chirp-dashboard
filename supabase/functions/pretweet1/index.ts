@@ -47,7 +47,7 @@ function log(level, message, data = null) {
  */
 function getEnvironmentVariables() {
   const environmentVariables = Deno.env.toObject();
-  const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'OPENAI_API_KEY'];
+  const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'ANTHROPIC_API_KEY'];
   
   // Validate required environment variables
   const missingVars = requiredVars.filter(varName => !environmentVariables[varName]);
@@ -58,8 +58,8 @@ function getEnvironmentVariables() {
   return {
     supabaseUrl: environmentVariables.SUPABASE_URL,
     supabaseAnonKey: environmentVariables.SUPABASE_ANON_KEY,
-    openAIApiKey: environmentVariables.OPENAI_API_KEY,
-    model: environmentVariables.OPENAI_MODEL || "o3-mini"
+    anthropicApiKey: environmentVariables.ANTHROPIC_API_KEY,
+    model: environmentVariables.ANTHROPIC_MODEL || "claude-3-7-sonnet-20250219"
   };
 }
 
@@ -331,49 +331,50 @@ Deliver your analysis in a structured format that clearly separates each angle, 
 }
 
 /**
- * Makes an OpenAI API call with retry logic
- * @param {string} apiKey - OpenAI API key
+ * Makes an Anthropic API call with retry logic
+ * @param {string} apiKey - Anthropic API key
  * @param {string} systemPrompt - System prompt
  * @param {string} userPrompt - User prompt
  * @param {string} model - Model to use
  * @returns {Promise<string>} Generated content
  * @throws {Error} If API call fails after all retries
  */
-async function callOpenAI(apiKey, systemPrompt, userPrompt, model) {
+async function callAnthropic(apiKey, systemPrompt, userPrompt, model) {
   let retryCount = 0;
   let lastError = null;
   
   while (retryCount < MAX_RETRIES) {
     try {
-      log('debug', `Calling OpenAI API (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+      log('debug', `Calling Anthropic API (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
       
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'x-api-key': apiKey,
           'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
           model: model,
+          system: systemPrompt,
           messages: [
-            { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
           ],
-          max_completion_tokens: 15000
+          max_tokens: 8000
         }),
       });
       
       if (!response.ok) {
         const errorData = await response.text();
-        log('error', `OpenAI API error (${response.status})`, errorData);
-        throw new Error(`OpenAI API returned ${response.status}: ${errorData}`);
+        log('error', `Anthropic API error (${response.status})`, errorData);
+        throw new Error(`Anthropic API returned ${response.status}: ${errorData}`);
       }
       
       const result = await response.json();
-      const content = result.choices?.[0]?.message?.content || "";
+      const content = result.content?.[0]?.text || "";
       
       if (!content) {
-        throw new Error("OpenAI API returned empty analysis");
+        throw new Error("Anthropic API returned empty analysis");
       }
       
       return content;
@@ -393,7 +394,7 @@ async function callOpenAI(apiKey, systemPrompt, userPrompt, model) {
   }
   
   // If we've reached here, all retries failed
-  throw new Error(`OpenAI API processing failed after ${MAX_RETRIES} attempts: ${lastError?.message}`);
+  throw new Error(`Anthropic API processing failed after ${MAX_RETRIES} attempts: ${lastError?.message}`);
 }
 
 /**
@@ -452,7 +453,7 @@ serve(async (req) => {
     // Fetch the short-term context
     const combinedShorttermContext = await fetchShortTermContext(supabase);
     
-    log('info', "Retrieved all necessary context data, preparing OpenAI request...");
+    log('info', "Retrieved all necessary context data, preparing Anthropic request...");
     
     // Create enhanced system prompt
     const systemPrompt = createEnhancedSystemPrompt();
@@ -482,9 +483,9 @@ ${analysisContent.shortterm_context1}
 
 Please structure your analysis according to the instructions and provide clear, actionable insights for social media content creation. Remember, do not include any emojis or hashtags in your output.`;
     
-    // Call OpenAI API with retry logic
-    log('info', "Calling OpenAI API for content analysis...");
-    const analysisResult = await callOpenAI(env.openAIApiKey, systemPrompt, userPrompt, env.model);
+    // Call Anthropic API with retry logic
+    log('info', "Calling Anthropic API for content analysis...");
+    const analysisResult = await callAnthropic(env.anthropicApiKey, systemPrompt, userPrompt, env.model);
     
     log('info', "Analysis completed. Saving results to database...");
     log('debug', "Analysis result length:", analysisResult.length);
