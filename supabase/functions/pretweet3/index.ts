@@ -64,72 +64,45 @@ function getEnvironmentVariables() {
 }
 
 /**
- * Fetches a specific tweetgenerationflow record by ID or the most recent record if no ID is provided
+ * Fetches the most recent tweetgenerationflow record with pretweet2 data
  * @param {SupabaseClient} supabase - Supabase client
- * @param {string} recordId - Record ID to fetch (optional)
- * @returns {Promise<Object>} The fetched record and its ID
- * @throws {Error} If the record cannot be fetched or required fields are missing
+ * @returns {Promise<{record: Object, recordId: string}>} The fetched record and its ID
+ * @throws {Error} If no records with pretweet2 data are found or retrieval fails
  */
-async function fetchTweetGenerationRecord(supabase, recordId) {
-  let record = null;
-  let fetchedRecordId = recordId;
-  let recordError = null;
+async function fetchLatestTweetGenerationRecord(supabase) {
   let retryCount = 0;
   
   while (retryCount < MAX_RETRIES) {
     try {
-      if (recordId) {
-        // If recordId is provided, fetch that specific record
-        log('info', `Fetching tweetgenerationflow record with ID: ${recordId} (attempt ${retryCount + 1})`);
-        const { data, error } = await supabase
-          .from('tweetgenerationflow')
-          .select('pretweet2, geminiobservation')
-          .eq('id', recordId)
-          .maybeSingle();
-        
-        if (error) {
-          throw error;
-        }
-        
-        record = data;
-      } else {
-        // If no recordId is provided, fetch the most recent record
-        log('info', `No recordId provided. Fetching most recent tweetgenerationflow record (attempt ${retryCount + 1})`);
-        const { data, error } = await supabase
-          .from('tweetgenerationflow')
-          .select('id, pretweet2, geminiobservation')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        
-        if (error) {
-          throw error;
-        }
-        
-        record = data;
-        if (record) {
-          fetchedRecordId = record.id;
-          log('info', `Found most recent record with ID: ${fetchedRecordId}`);
-        }
+      log('info', `Fetching most recent tweetgenerationflow record with pretweet2 data (attempt ${retryCount + 1})`);
+      
+      const { data, error } = await supabase
+        .from('tweetgenerationflow')
+        .select('id, pretweet2, geminiobservation')
+        .not('pretweet2', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) {
+        throw error;
       }
       
-      // Validate the record contents
-      if (!record || !record.pretweet2 || !record.geminiobservation) {
-        log('warn', `Record ${recordId || 'most recent'} not found or missing required data (attempt ${retryCount + 1})`);
+      if (!data || !data.pretweet2 || !data.geminiobservation) {
+        log('warn', `No records found with required pretweet2 and geminiobservation data (attempt ${retryCount + 1})`);
         retryCount++;
         
         if (retryCount < MAX_RETRIES) {
           const backoffTime = Math.pow(2, retryCount) * RETRY_DELAY_MS;
-          log('info', `Record might still be committing to database. Retrying in ${backoffTime}ms...`);
+          log('info', `Records might still be committing to database. Retrying in ${backoffTime}ms...`);
           await new Promise(resolve => setTimeout(resolve, backoffTime));
         }
       } else {
-        // Success, exit the retry loop
-        break;
+        log('info', `Found most recent record with ID: ${data.id}`);
+        return { record: data, recordId: data.id };
       }
     } catch (error) {
-      log('error', `Error fetching tweetgenerationflow record ${recordId || 'most recent'} (attempt ${retryCount + 1})`, error);
-      recordError = error;
+      log('error', `Error fetching tweetgenerationflow records (attempt ${retryCount + 1})`, error);
       retryCount++;
       
       if (retryCount < MAX_RETRIES) {
@@ -141,11 +114,7 @@ async function fetchTweetGenerationRecord(supabase, recordId) {
   }
   
   // If we still don't have the record after all retries, throw an error
-  if (!record || !record.pretweet2 || !record.geminiobservation) {
-    throw new Error(`Record ${recordId || 'most recent'} not found or missing required data after ${MAX_RETRIES} attempts`);
-  }
-  
-  return { record, recordId: fetchedRecordId };
+  throw new Error(`No records found with pretweet2 and geminiobservation data after ${MAX_RETRIES} attempts`);
 }
 
 /**
@@ -778,25 +747,11 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabase = createClient(env.supabaseUrl, env.supabaseAnonKey);
     
-    // Get the record ID from the request body
-    const requestData = await req.json().catch(() => ({}));
-    const recordId = requestData.recordId;
+    // Fetch the most recent record with pretweet2 data
+    log('info', "Fetching most recent record with pretweet2 data...");
+    const { record, recordId } = await fetchLatestTweetGenerationRecord(supabase);
     
-    if (!recordId) {
-      log('info', "No recordId provided, will fetch the most recent record");
-    } else {
-      log('info', `Processing recordId: ${recordId}`);
-    }
-    
-    // Fetch the required data from the tweetgenerationflow record
-    log('info', `Fetching tweetgenerationflow record with ID: ${recordId || 'most recent'}`);
-    
-    // The key change - ensure the result from fetchTweetGenerationRecord is properly destructured
-    const fetchResult = await fetchTweetGenerationRecord(supabase, recordId);
-    const recordData = fetchResult.record;
-    const fetchedRecordId = fetchResult.recordId;
-    
-    log('info', `Successfully retrieved record with ID: ${fetchedRecordId}`);
+    log('info', `Processing record with ID: ${recordId}`);
     log('info', "Retrieved content from pretweet2 and geminiobservation columns, preparing Gemini API request...");
     
     // Create system prompt
@@ -806,11 +761,11 @@ serve(async (req) => {
     const userPrompt = `Please analyze and categorize the content angles from pretweet2 below, considering the geminiobservation context:
 
 <angles>
-${recordData.pretweet2}
+${record.pretweet2}
 </angles>
 
 <geminiobservation>
-${recordData.geminiobservation}
+${record.geminiobservation}
 </geminiobservation>`;
     
     // Call Gemini API to categorize the content
@@ -822,13 +777,13 @@ ${recordData.geminiobservation}
     log('debug', "Analysis result (first 200 chars):", analysisResult.substring(0, 200));
     
     // Save the analysis result back to the database
-    await saveAnalysisResult(supabase, fetchedRecordId, analysisResult);
+    await saveAnalysisResult(supabase, recordId, analysisResult);
     
     // Return success response
     return new Response(
       JSON.stringify({ 
         success: true, 
-        recordId: fetchedRecordId,
+        recordId: recordId,
         message: "Content categorization completed and saved successfully",
         analysisLength: analysisResult.length
       }),

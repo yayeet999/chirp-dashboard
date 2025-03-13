@@ -266,27 +266,24 @@ async function saveAnalysisResult(supabase, recordId, analysisResult) {
 
 /**
  * Call the pretweet3 edge function to continue the workflow
- * @param {string} supabaseUrl - Supabase URL
- * @param {string} supabaseAnonKey - Supabase anon key
- * @param {string} recordId - Record ID to process
  * @returns {Promise<void>}
  */
-async function triggerPretweet3Function(supabaseUrl, supabaseAnonKey, recordId) {
-  log('info', `Triggering pretweet3 edge function for record: ${recordId}`);
+async function triggerPretweet3Function(supabaseUrl, supabaseAnonKey) {
+  log('info', `Triggering pretweet3 edge function without passing any data`);
   
   const pretweet3Url = `${supabaseUrl}/functions/v1/pretweet3`;
   let retryCount = 0;
   
   while (retryCount < MAX_RETRIES) {
     try {
-      // Simplified: Just pass the recordId, no need to transfer any record data
+      // Call pretweet3 with an empty object - pretweet3 will find the latest record on its own
       const response = await fetch(pretweet3Url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${supabaseAnonKey}`
         },
-        body: JSON.stringify({ recordId })
+        body: JSON.stringify({}) // Empty object - no data passed
       });
       
       if (!response.ok) {
@@ -440,8 +437,8 @@ Please analyze all these angles and select ONLY the TWO most promising ones base
     // After successful completion of pretweet2, trigger pretweet3
     log('info', "Triggering pretweet3 to continue the workflow...");
     try {
-      // Simply pass the recordId to pretweet3, which will fetch the data it needs
-      await triggerPretweet3Function(env.supabaseUrl, env.supabaseAnonKey, recordId);
+      // Call pretweet3 without passing any data - it will find the latest record on its own
+      await triggerPretweet3Function(env.supabaseUrl, env.supabaseAnonKey);
       log('info', "pretweet3 function triggered successfully");
     } catch (error) {
       log('error', "Failed to trigger pretweet3 function", error);
